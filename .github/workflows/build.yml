@@ -14,6 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +29,8 @@ jobs:
 
       # The simulation has no UI dependencies, so it is stress-tested headless:
       # random cursor moves, snowballs, window drags, desktop switches.
+      # A run fails on a real hang (a step taking hundreds of milliseconds, or the process
+      # not finishing at all), not on the odd slow step of a busy shared runner.
       - name: Physics stress test
         run: |
           for seed in 1 2 3 4; do

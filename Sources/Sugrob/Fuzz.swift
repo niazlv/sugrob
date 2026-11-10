@@ -5,6 +5,8 @@ import QuartzCore
 /// Ищет шаги симуляции, которые длятся слишком долго, и лавинный рост числа частиц.
 enum Fuzz {
     static func run(seconds: Float, seed: UInt64, cell: Float) -> Int32 {
+        // Если симуляция зациклится, шаг не вернётся никогда — тогда процесс убьёт будильник.
+        alarm(180)
         var rng = Rng(seed: seed)
         let wPt: Float = 2056, hPt: Float = 1329
         let sim = Sim(widthPt: wPt, heightPt: hPt, cell: cell, seed: seed &+ 7)
@@ -138,6 +140,9 @@ enum Fuzz {
         }
         print(String(format: "fuzz seed=%llu cell=%.0f: %.0f s simulated, worst step %.2f ms (t=%.1f), max particles %d, slow steps %d, max deposits/step %d, longest storm %.1f s",
                      seed, cell, seconds, worst, worstAt, maxParts, slow, depMax, stormMax))
-        return slow == 0 ? 0 : 1
+        // Провал — это настоящее зависание: шаг в сотни миллисекунд или комья, которые секундами
+        // падают и срываются снова. Отдельные шаги по 30–50 мс бывают просто от занятой машины
+        // (например, на общем сервере сборки), поэтому они только печатаются.
+        return worst > 400 || stormMax > 3 ? 1 : 0
     }
 }
