@@ -1,0 +1,13 @@
+# build output
+.build/
+.build*/
+build/
+*.xcodeproj
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# machine-local tooling and server setup (not part of the app)
+deploy/
+*.local.*

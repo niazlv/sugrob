@@ -1,0 +1,55 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+# Releases are published by release.sh, which signs the update manifest with a key
+# that never leaves the maintainer's machine. CI only builds and tests.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+
+      # Universal (Apple Silicon + Intel) app bundle and build/Sugrob.zip
+      - name: Build
+        run: ./build.sh --dist
+
+      # The simulation has no UI dependencies, so it is stress-tested headless:
+      # random cursor moves, snowballs, window drags, desktop switches.
+      - name: Physics stress test
+        run: |
+          for seed in 1 2 3 4; do
+            build/dist/Sugrob.app/Contents/MacOS/Sugrob --fuzz 300 $seed 3
+          done
+          build/dist/Sugrob.app/Contents/MacOS/Sugrob --fuzz 300 5 2
+
+      # Renders a scripted scenario to PNG. Needs a GPU, which hosted runners may lack.
+      - name: Render self-test (best effort)
+        continue-on-error: true
+        run: |
+          mkdir -p shots
+          build/dist/Sugrob.app/Contents/MacOS/Sugrob --selftest shots
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sugrob
+          path: build/Sugrob.zip
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-test-frames
+          path: shots/*.png
+          if-no-files-found: ignore
