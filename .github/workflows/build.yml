@@ -45,10 +45,17 @@ jobs:
           mkdir -p shots
           build/dist/Sugrob.app/Contents/MacOS/Sugrob --selftest shots
 
+      # Installer image (window background, app icon, Applications link), the same
+      # tools/dmg/make_dmg.sh that release.sh attaches to GitHub Releases.
+      - name: Disk image
+        run: tools/dmg/make_dmg.sh build/dist/Sugrob.app build/Sugrob.dmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: Sugrob
-          path: build/Sugrob.zip
+          path: |
+            build/Sugrob.zip
+            build/Sugrob.dmg
 
       - uses: actions/upload-artifact@v4
         if: always()
