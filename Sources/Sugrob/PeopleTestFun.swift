@@ -5,12 +5,16 @@ import Metal
 /// (Чтобы прогон повторялся точь-в-точь, запускать с SWIFT_DETERMINISTIC_HASHING=1.)
 /// Сценарии: fun (всё подряд), fun-tunnel (тоннель в слежавшейся горке), fun-loose (в рыхлой — свод падает),
 /// fun-massif (высокий слежавшийся сугроб: нора с края), fun-pillars (после хода не остаётся стоек наста),
+/// fun-den (нора с комнаткой, двое внутри, лаз наверх), fun-grow (нору удлиняют и дорывают комнатку во второй
+/// и третий заход), fun-join (две норы навстречу соединяют), fun-storm (в буран прячутся в норе),
+/// fun-long [секунд] (долгий прогон: сколько разных раскопок, какая доля времени у детей уходит на тоннели),
 /// fun-natural (как дети роют сами),
 /// fun-angel, fun-sled, fun-tree, fun-fuzz [секунд] (стресс: частые приходы, санки, ёлки, тоннели, быстрый курсор).
 enum FunTest {
     static func run(_ st: PeopleStage, what: String, args: [String]) -> Int32 {
         if what == "fun-fuzz" { return fuzz(st, args: args) }
         if what == "fun-natural" { return natural(st, args: args) }
+        if what == "fun-long" { return long(st, args: args) }
         let s = st.sim
         let all = what == "fun"
         if let seed = args.first.flatMap({ UInt64($0) }) { s.people.reseed(seed) }      // четвёртый параметр — зерно случайностей
@@ -31,6 +35,10 @@ enum FunTest {
         if all || what == "fun-loose" { if !tunnel(st, tag: "b", hard: 0, side: 1) { bad += 1 } }
         if all || what == "fun-massif" { if !massif(st) { bad += 1 } }
         if all || what == "fun-pillars" { if !pillars(st) { bad += 1 } }
+        if all || what == "fun-den" { if !den(st) { bad += 1 } }
+        if all || what == "fun-grow" { if !grow(st) { bad += 1 } }
+        if all || what == "fun-join" { if !join(st) { bad += 1 } }
+        if all || what == "fun-storm" { if !storm(st) { bad += 1 } }
         print(String(format: "fun test (%@, cell %.0f, unit %.0f): %.0f s simulated in %.1f s, failed parts: %d",
                      what, st.cell, st.unit, s.time, CACurrentMediaTime() - t0, bad))
         return bad == 0 ? 0 : 1
@@ -49,6 +57,7 @@ enum FunTest {
     /// Начать с чистого листа: никого, ровный свежий снег.
     static func fresh(_ st: PeopleStage) {
         let s = st.sim
+        solo = false
         s.people.clearAll(s)
         s.clearAll()
         s.forceFill = true; s.fillSurfaces(); s.forceFill = false
@@ -58,7 +67,24 @@ enum FunTest {
     }
 
     /// Гости не расходятся, пока идёт сценарий.
-    static func hold(_ st: PeopleStage) { st.sim.people.visitEnd = max(st.sim.people.visitEnd, st.sim.time + 600) }
+    static func hold(_ st: PeopleStage) {
+        let s = st.sim, pp = s.people
+        pp.visitEnd = max(pp.visitEnd, s.time + 600)
+        // в сценариях про норы роют только по заказу: остальным гостям «не до тоннелей» (см. leaveTunnel)
+        // и стоят на месте, пока не попросят (иначе затеют снежки и ступеньки как раз у норы)
+        if solo {
+            for j in pp.folks.indices where pp.folks[j].home == -1 {
+                pp.folks[j].stayUntil = s.time + 600
+                if pp.folks[j].job == .idle && People.funWish[pp.folks[j].id] == nil { pp.folks[j].wait = pp.folks[j].t + 5 }
+            }
+        }
+    }
+    static var solo = false
+    /// Подождать, не отпуская гостей (и не давая им разбрестись, см. hold).
+    static func rest(_ st: PeopleStage, _ secs: Float) {
+        var t: Float = 0
+        while t < secs - 0.001 { let d = min(0.1, secs - t); st.run(d); hold(st); t += d }
+    }
 
     /// Поставить гостя прямо на место.
     static func place(_ st: PeopleStage, kid: Bool, x: Float) -> Int32 {
@@ -166,6 +192,14 @@ enum FunTest {
         defer { People.funWishAt = nil }
         guard wish(st, first, .tunnel) else {
             print("tunnel \(tag): FAIL — did not start (job \(String(describing: person(st, first)?.job)))")
+            if debug, let q = person(st, first) {
+                let c = Int(q.x * s.inv), h = Int(hx * s.inv)
+                for i in 0..<5 {
+                    let T = pp.tunnelSite(s, near: hx, strict: false, reach: 30)
+                    print("  try \(i): site \(T.map { describe($0, st) + " cols \($0.c0)…\($0.c1)" } ?? "nil"), entry ok \(T.map { pp.tunnelEntry($0, q, toward: 0, s).ok } ?? false)")
+                }
+                print("  kid at col \(c), hill at col \(h); piles \((min(c, h) - 14...max(c, h) + 14).map { s.snowHeight($0, s.H) })")
+            }
             return false
         }
         guard let T0 = pp.tunnels.last else { print("tunnel \(tag): FAIL — no record"); return false }
@@ -214,7 +248,7 @@ enum FunTest {
                     if !buried { st.run(0.6); snap("\(k)4-buried") }
                     buried = true
                 } else if crawl > 0 || s.time - t0 > 40 {
-                    out = crawl > 0 && !buried && p.job == .cheer && pp.tunnels.first(where: { $0.id == T0.id })?.done == true
+                    out = crawl > 0 && !buried && p.job == .cheer && pp.tunnels.first(where: { $0.id == T0.id && !$0.dead })?.done == true
                     snap(out ? "\(k)4-out" : "\(k)4-end")
                     break
                 }
@@ -223,7 +257,7 @@ enum FunTest {
         }
         let r1 = follow(first, "")
         st.run(3)
-        let T1 = pp.tunnels.first(where: { $0.id == T0.id })
+        let T1 = pp.tunnels.first(where: { $0.id == T0.id && !$0.dead })
         var filled = 0, roof = 0
         if T0.r1 - T0.r0 >= 2 {
             for c in (T0.r0 + 1)..<T0.r1 {
@@ -239,7 +273,10 @@ enum FunTest {
             if !(r1.out && T1?.done == true && roof * 10 >= (T0.r1 - T0.r0 - 1) * 8) { print("tunnel \(tag): FAIL — firm roof must hold and the kid must get through"); ok = false }
             // второй — по готовому
             People.funWish.removeAll()
+            solo = true                 // первый пусть постоит: полезет рубить ступеньки по горке — засыплет второму устье
             let second = place(st, kid: true, x: p0.x)
+            People.funWishKind = "visit"
+            defer { People.funWishKind = nil; solo = false }
             if ok, wish(st, second, .tunnel, timeout: 120) {
                 let r2 = follow(second, "5")
                 print(String(format: "tunnel %@: second out=%@ buried=%@ crawl %.1f s", tag, "\(r2.out)", "\(r2.buried)", r2.crawl))
@@ -296,6 +333,8 @@ enum FunTest {
         hold(st)
         let kid = place(st, kid: true, x: edge - 45 * u)
         People.funWishAt = edge + 8 * u
+        People.funWishKind = "burrow"
+        defer { People.funWishKind = nil }
         guard wish(st, kid, .tunnel) else { print("massif: FAIL — did not start"); return false }
         guard let T0 = pp.tunnels.last else { return false }
         let burrow = T0.open0 != T0.open1
@@ -319,7 +358,7 @@ enum FunTest {
             } else if p.job == .buried {
                 buried = true
             } else if s.time - t0 > 5 {
-                out = p.job == .cheer && pp.tunnels.first(where: { $0.id == T0.id })?.done == true
+                out = p.job == .cheer && pp.tunnels.first(where: { $0.id == T0.id && !$0.dead })?.done == true
                 snap("fm6-out")
                 break
             }
@@ -339,6 +378,386 @@ enum FunTest {
         let stakes = lasting(st)
         if !stakes.isEmpty { print("massif: FAIL — frozen stakes left standing at columns \(stakes)"); ok = false }
         return ok
+    }
+
+    // MARK: - Норы: комнатка, продолжение, соединение, лаз, буран
+
+    static func kindNames(_ bits: Int) -> String {
+        let names = [1: "longer", 2: "second mouth", 3: "room", 4: "joined", 5: "shaft", 6: "through", 7: "through x2", 8: "den", 9: "burrow"]
+        return names.keys.sorted().filter { bits & (1 << $0) != 0 }.map { names[$0]! }.joined(separator: ", ")
+    }
+
+    /// Слежавшийся массив высотой tall ростов от x0 шириной width (в «пикселях» человечка); вокруг — ровная
+    /// невысокая площадка. Возвращает вырезку для кадров.
+    static func block(_ st: PeopleStage, x0: Float, width: Float, tall: Float = 3.5, hard: UInt8 = 232, pad: Float = 110) -> CGRect {
+        let s = st.sim, pp = s.people, u = st.unit
+        let rows = pp.tunnelRows(s)
+        let high = tall * 14 * u
+        level(st, from: x0 - pad * u, to: x0 + (width + pad) * u, cells: rows + 1)
+        var rng = Rng(seed: 7)
+        let a = max(0, Int(x0 / st.cell)), b = min(s.W - 1, Int((x0 + width * u) / st.cell))
+        for c in a...b {
+            for r in max(0, s.H - Int(high / st.cell))..<s.H where s.snow[r * s.W + c] == 0 && s.ledge[r * s.W + c] == 0 { s.snow[r * s.W + c] = rng.shade() }
+            for r in 0..<s.H where s.snow[r * s.W + c] != 0 { s.hard[r * s.W + c] = hard }
+        }
+        s.gridDirty = true
+        s.hardDirty = true
+        return CGRect(x: CGFloat(x0 - 70 * u), y: CGFloat(s.hPt - high - 50), width: CGFloat((width + 140) * u), height: CGFloat(high + 50))
+    }
+
+    /// Снег почти не идёт и не подтаивает сверх предела — чтобы сценарий был про раскопки, а не про погоду.
+    static func calm(_ st: PeopleStage) -> SimConfig {
+        let s = st.sim
+        let saved = s.cfg
+        solo = true
+        s.cfg.capScale = 6
+        s.cfg.intensity = 0
+        s.cfg.flakeRate = 2
+        s.cfg.people = 2
+        return saved
+    }
+
+    /// Отправить ребёнка рыть (kind — что именно) и дождаться, пока он закончит. Возвращает, чем кончилось.
+    @discardableResult
+    static func send(_ st: PeopleStage, _ id: Int32, kind: String, at: Float, tag: String, crop: CGRect, shots: [(phase: Int, after: Float, name: String)] = [],
+                     timeout: Float = 150) -> (ok: Bool, buried: Bool, fly: Float) {
+        let s = st.sim, pp = s.people
+        People.funWishAt = at
+        People.funWishKind = kind
+        defer { People.funWishAt = nil; People.funWishKind = nil; People.funWish.removeAll() }
+        guard wish(st, id, .tunnel, timeout: 90) else {
+            let q = person(st, id)
+            print("\(tag): FAIL — '\(kind)' did not start (now \(String(describing: q?.job)) at x=\(q?.x ?? -1)); tunnels: \(pp.tunnels.map { describe($0, st) + " dead \($0.dead) done \($0.done) fails \($0.fails) busy \(pp.tunnelBusy($0.id))" })")
+            if debug, let q {
+                for T in pp.tunnels where !T.dead {
+                    let wc = Int(14 * st.unit / st.cell)
+                    for d in [-1, 1] where d > 0 ? !T.open1 : !T.open0 {
+                        let E = d > 0 ? T.r1 : T.r0, w = E + d * (wc + 1)
+                        let fit = pp.roomFit(s, min(E + d, w), max(E + d, w))
+                        print("  #\(T.id) end \(d): entry ok \(pp.tunnelEntry(T, q, toward: d, s).ok), room fit \(String(describing: fit)), roof holds \(fit.map { pp.roofHolds(s, min(E, w), max(E, w), rows: $0, packed: true) } ?? false), piles \((min(E, w)...max(E, w)).map { s.snowHeight($0, s.H) }), solid \((min(E, w)...max(E, w)).map { c in (0..<s.H).first(where: { s.snow[(s.H - 1 - $0) * s.W + c] == 0 }) ?? s.H }), sup \(T.sup), floor row: \((min(E, w)...max(E, w)).map { c in "s\(s.snow[(s.H - 1) * s.W + c] != 0 ? 1 : 0)l\(s.ledge[(s.H - 1) * s.W + c])m\(s.mask[(s.H - 1) * s.W + c])" }), 2nd: \((min(E, w)...max(E, w)).map { c in "s\(s.snow[(s.H - 2) * s.W + c] != 0 ? 1 : 0)" }), path piles \((Int(q.x * s.inv)...T.c0 + 2).map { s.snowHeight($0, s.H) })")
+                    }
+                }
+            }
+            return (false, false, 0)
+        }
+        var seen = Set<String>()
+        var fly: Float = 0, buried = false
+        let t0 = s.time
+        while s.time - t0 < timeout {
+            st.run(0.1)
+            hold(st)
+            guard let p = person(st, id) else { return (false, buried, fly) }
+            fly = max(fly, flight(st, p))
+            if debug && Int(s.time * 10) % 5 == 0 {
+                let c = Int(p.x * s.inv)
+                print(String(format: "  t=%.1f %@ phase %d pt %.1f stage %d mode %@ x %.1f y %.1f col %d dir %.0f piles %@", s.time, "\(p.job)", p.phase, p.t, p.stage, "\(p.mode)", p.x, p.y, c, p.aux2,
+                             "\((c - 4...c + 8).map { s.snowHeight($0, s.H) })"))
+            }
+            if p.job == .tunnel {
+                for sh in shots where p.phase == sh.phase && p.t > sh.after && seen.insert(sh.name).inserted { st.shot(sh.name, crops: [crop], zoom: 2, full: false) }
+            } else if p.job == .buried {
+                buried = true
+            } else if s.time - t0 > 3 {
+                return (p.job == .cheer && !buried, buried, fly)
+            }
+        }
+        print("\(tag): '\(kind)' timed out (job \(String(describing: person(st, id)?.job)) phase \(person(st, id)?.phase ?? -1))")
+        return (false, buried, fly)
+    }
+
+    static func describe(_ T: Tunnel, _ st: PeopleStage) -> String {
+        let s = st.sim
+        var parts: [String] = []
+        for i in 0..<T.seg.count {
+            parts.append(String(format: "%@%.0f pt%@", i == T.room ? "room " : "", Float(T.sup[i + 1] - T.sup[i] - 1) * s.cell, T.seg[i] ? "" : " (not dug)"))
+        }
+        return "#\(T.id) [\(T.open0 ? "mouth" : "wall")] \(parts.joined(separator: " | ")) [\(T.open1 ? "mouth" : "wall")]\(T.shaft != 0 ? ", shaft \(T.shaftN) steps" : ""), links \(T.links), did: \(kindNames(T.kinds))"
+    }
+
+    /// Нора с комнаткой: ребёнок роет ход с края массива и комнатку в конце; потом в ней сидят двое;
+    /// потом из неё прорубают лаз наверх и вылезают на макушку сугроба.
+    static func den(_ st: PeopleStage) -> Bool {
+        let s = st.sim, pp = s.people, u = st.unit
+        fresh(st)
+        let saved = calm(st)
+        defer { s.cfg = saved }
+        let edge: Float = 420
+        let crop = block(st, x0: edge, width: 120)
+        hold(st)
+        var ok = true
+        let kid = place(st, kid: true, x: edge - 45 * u)
+        let r = send(st, kid, kind: "den", at: edge + 8 * u, tag: "den", crop: crop,
+                     shots: [(1, 2.0, "fg1-entrance"), (3, 4.0, "fg2-passage"), (9, 1.0, "fg3-room-dug")])
+        guard r.ok, let T0 = pp.tunnels.last(where: { !$0.dead }) else { print("den: FAIL — was not dug (buried \(r.buried))"); return false }
+        print("den: " + describe(T0, st))
+        if pp.denCap(T0, s) < 2 { print("den: FAIL — no room to sit in"); ok = false }
+        // двое залезают посидеть
+        let a = place(st, kid: true, x: edge - 40 * u), b = place(st, kid: true, x: edge - 60 * u)
+        People.funWishAt = edge + 8 * u
+        People.funWishKind = "visit"
+        var inside = 0, most = 0
+        let t0 = s.time
+        while s.time - t0 < 80 {
+            for id in [a, b] { if let p = person(st, id), p.job != .tunnel, p.job != .cheer, most < 2 { People.funWish[id] = .tunnel } }
+            rest(st, 0.1)
+            hold(st)
+            inside = pp.folks.filter { $0.job == .tunnel && $0.obj == T0.id && $0.phase == 9 }.count
+            if debug && Int(s.time * 10) % 5 == 0 {
+                print(String(format: "  t=%.1f ", s.time) + pp.folks.map { String(format: "#%d %@/%d st%d x%.0f y%.0f %@", $0.id, "\($0.job)", $0.phase, $0.stage, $0.x, $0.y, "\($0.mode)") }.joined(separator: "  ")
+                      + " | " + pp.tunnels.map { describe($0, st) }.joined(separator: "; "))
+            }
+            if inside > most {
+                most = inside
+                st.shot("fg4-inside-\(inside)", crops: [crop], zoom: 2, full: inside == 2)
+                if inside == 2 { rest(st, 0.7); st.shot("fg4-inside-2b", crops: [crop], zoom: 3, full: false) }
+            }
+            if most >= 2 && !pp.tunnelBusy(T0.id) { break }
+        }
+        People.funWish.removeAll(); People.funWishAt = nil; People.funWishKind = nil
+        print("den: sitting inside at once: \(most)")
+        if most < 2 { print("den: FAIL — two kids must sit in the room together"); ok = false }
+        rest(st, 3)
+        // лаз наверх
+        if let T = pp.tunnels.first(where: { $0.id == T0.id && !$0.dead }) {
+            print("den: before the shaft: " + describe(T, st) + "; busy \(pp.tunnelBusy(T.id)), old \(T.old), way up in \(String(describing: pp.shaftPlan(s, T.r1, 1, except: T.id))) steps")
+        }
+        let c = place(st, kid: true, x: edge - 45 * u)
+        let r2 = send(st, c, kind: "shaft", at: edge + 8 * u, tag: "den", crop: crop, shots: [(11, 2.5, "fg5-shaft"), (11, 5.0, "fg5b-shaft")])
+        if let T = pp.tunnels.first(where: { $0.id == T0.id && !$0.dead }), let p = person(st, c) {
+            st.shot("fg6-on-top", crops: [crop], zoom: 2, full: true)
+            print("den: after the shaft: " + describe(T, st) + String(format: "; the kid stands %.0f pt above the floor", s.hPt - p.y))
+            if !r2.ok || T.shaftN < 2 || s.hPt - p.y < 2.2 * 14 * u { print("den: FAIL — no way up was cut"); ok = false }
+        } else { print("den: FAIL — the den is gone after the shaft"); ok = false }
+        rest(st, 5)
+        let stakes = lasting(st)
+        if !stakes.isEmpty { print("den: FAIL — frozen stakes left standing at columns \(stakes)"); ok = false }
+        return ok
+    }
+
+    /// Продолжение: нору во второй заход удлиняют, в третий — роют в конце комнатку.
+    static func grow(_ st: PeopleStage) -> Bool {
+        let s = st.sim, pp = s.people, u = st.unit
+        fresh(st)
+        let saved = calm(st)
+        defer { s.cfg = saved }
+        let edge: Float = 420
+        let crop = block(st, x0: edge, width: 130)
+        hold(st)
+        var ok = true
+        var lens: [Float] = []
+        for (n, kind) in ["burrow", "longer", "room"].enumerated() {
+            let kid = place(st, kid: true, x: edge - 45 * u)
+            let r = send(st, kid, kind: kind, at: edge + 8 * u, tag: "grow", crop: crop, shots: [(3, 3.0, "fh\(n + 1)-\(kind)")])
+            guard let T = pp.tunnels.last(where: { !$0.dead }) else { print("grow: FAIL — no tunnel after '\(kind)'"); return false }
+            rest(st, 1)
+            st.shot("fh\(n + 1)b-\(kind)-done", crops: [crop], zoom: 2, full: n == 2)
+            lens.append(Float(T.r1 - T.r0) * st.cell)
+            print("grow: after '\(kind)' (ok \(r.ok), buried \(r.buried)): " + describe(T, st))
+            if !r.ok || T.seg.contains(false) { print("grow: FAIL — '\(kind)' was not finished"); ok = false }
+            rest(st, 4)
+        }
+        if lens.count == 3 && !(lens[1] > lens[0] + 8 * u && lens[2] > lens[1] + 8 * u) { print("grow: FAIL — the burrow did not get longer: \(lens)"); ok = false }
+        if let T = pp.tunnels.last(where: { !$0.dead }), pp.denCap(T, s) < 2 { print("grow: FAIL — no room at the end"); ok = false }
+        let stakes = lasting(st)
+        if !stakes.isEmpty { print("grow: FAIL — frozen stakes left standing at columns \(stakes)"); ok = false }
+        return ok
+    }
+
+    /// Соединение: две норы с двух сторон бугра; третий заход — дорыться из одной в другую и вылезти с той стороны.
+    static func join(_ st: PeopleStage) -> Bool {
+        let s = st.sim, pp = s.people, u = st.unit
+        fresh(st)
+        let saved = calm(st)
+        defer { s.cfg = saved }
+        let edge: Float = 430, width: Float = 70
+        let crop = block(st, x0: edge, width: width, tall: 2.6)
+        hold(st)
+        var ok = true
+        let k1 = place(st, kid: true, x: edge - 45 * u)
+        let r1 = send(st, k1, kind: "burrow", at: edge + 8 * u, tag: "join", crop: crop)
+        let k2 = place(st, kid: true, x: edge + (width + 45) * u)
+        let r2 = send(st, k2, kind: "burrow", at: edge + (width - 8) * u, tag: "join", crop: crop)
+        let recs = pp.tunnels.filter { !$0.dead }
+        st.shot("fj1-two-burrows", crops: [crop], zoom: 2, full: false)
+        for T in recs { print("join: " + describe(T, st)) }
+        guard r1.ok, r2.ok, recs.count == 2 else { print("join: FAIL — two burrows were not dug"); return false }
+        let k3 = place(st, kid: true, x: edge - 45 * u)
+        let r3 = send(st, k3, kind: "join", at: edge + 8 * u, tag: "join", crop: crop, shots: [(3, 4.0, "fj2-digging-across"), (4, 0.5, "fj3-out-the-other-side")])
+        rest(st, 1)
+        st.shot("fj4-joined", crops: [crop], zoom: 2, full: true)
+        let after = pp.tunnels.filter { !$0.dead }
+        for T in after { print("join: after: " + describe(T, st)) }
+        let far = (person(st, k3)?.x ?? 0) > edge + width * u
+        print("join: ok \(r3.ok), buried \(r3.buried), came out on the far side: \(far)")
+        if !(r3.ok && after.count == 1 && after[0].open0 && after[0].open1 && after[0].links >= 1 && !after[0].seg.contains(false) && far) {
+            print("join: FAIL — the burrows were not joined into one passage"); ok = false
+        }
+        // и по соединённому ходу пролезают насквозь
+        let k4 = place(st, kid: true, x: edge + (width + 45) * u)
+        let r4 = send(st, k4, kind: "visit", at: edge + width * 0.5 * u, tag: "join", crop: crop, shots: [(3, 2.5, "fj5-through")])
+        if !r4.ok { print("join: FAIL — could not crawl through the joined passage"); ok = false }
+        let stakes = lasting(st)
+        if !stakes.isEmpty { print("join: FAIL — frozen stakes left standing at columns \(stakes)"); ok = false }
+        return ok
+    }
+
+    /// Буран: те, кто рядом с норой, прячутся в ней (denShelter), сидят, пока не стихнет, и вылезают.
+    static func storm(_ st: PeopleStage) -> Bool {
+        let s = st.sim, pp = s.people, u = st.unit
+        fresh(st)
+        let saved = calm(st)
+        defer { s.cfg = saved; s.wind.stopStorm() }
+        let edge: Float = 420
+        let crop = block(st, x0: edge, width: 120)
+        hold(st)
+        var ok = true
+        let kid = place(st, kid: true, x: edge - 45 * u)
+        guard send(st, kid, kind: "den", at: edge + 8 * u, tag: "storm", crop: crop).ok, let T0 = pp.tunnels.last(where: { !$0.dead }) else {
+            print("storm: FAIL — no den to hide in"); return false
+        }
+        let cap = pp.denCap(T0, s)
+        rest(st, 8)
+        while pp.tunnelBusy(T0.id) && s.time < 200 { rest(st, 0.5); hold(st) }      // тот, кто рыл, досидит и вылезет
+        let ids = [kid, place(st, kid: false, x: edge - 70 * u), place(st, kid: true, x: edge - 95 * u), place(st, kid: false, x: edge - 120 * u)]
+        hold(st)
+        rest(st, 1)
+        s.wind.startStorm(strength: 1, dir: -1, seconds: 45)       // устье норы — слева, с подветренной стороны
+        var t: Float = 0
+        while s.wind.storm < 0.6 && t < 20 { rest(st, 0.2); t += 0.2 }
+        var went = 0, free = 0
+        var denIds: [Int32] = []
+        let inside0 = pp.folks.filter { $0.job == .tunnel && $0.obj == T0.id }.count
+        if debug { print("  before the storm hits: " + pp.folks.map { String(format: "#%d %@/%d x%.0f %@", $0.id, "\($0.job)", $0.phase, $0.x, "\($0.mode)") }.joined(separator: "  ")) }
+        for id in ids {
+            guard let j = pp.folks.firstIndex(where: { $0.id == id }), pp.folks[j].mode == .ground, pp.folks[j].job != .tunnel, pp.folks[j].job != .buried else { continue }
+            free += 1
+            var q = pp.folks[j]                             // ядро зовёт так же: со своей копией человечка
+            let was = q.job
+            let ok = pp.denShelter(&q, s)
+            if ok { went += 1; denIds.append(id) }
+            if debug { print(String(format: "  #%d %@ (was %@) at x %.0f: %@", q.id, q.look.kid ? "kid" : "adult", "\(was)", q.x, ok ? "to the den" : "no")) }
+            pp.folks[j] = q
+        }
+        print(String(format: "storm: storm %.2f, wind %@; den for %d; went to the den: %d of %d free", s.wind.storm, s.wind.dir > 0 ? "to the right" : "to the left", cap, went, free))
+        // (кому до устья не дойти — стенка, обрыв, — тот прячется как умеет; но больше, чем мест, нора не берёт)
+        // Ядро само зовёт denShelter в начале бурана — кого-то оно могло отправить в нору раньше этой проверки.
+        // (те, кого оно уже отправило, сосчитаны в inside0)
+        if went + inside0 < 1 || went > max(0, cap - inside0) { print("storm: FAIL — the den must take someone, and no more than it holds"); ok = false }
+        var most = 0
+        let t0 = s.time
+        while s.time - t0 < 40 && s.wind.storm > 0.5 {
+            rest(st, 0.2)
+            hold(st)
+            let inside = pp.folks.filter { $0.job == .tunnel && $0.obj == T0.id && $0.phase == 9 }.count
+            if inside > most { most = inside; st.shot("fs1-in-the-den-\(inside)", crops: [crop], zoom: 2, full: inside == went) }
+            if debug && Int(s.time * 5) % 5 == 0 {
+                print(String(format: "  t=%.1f storm %.2f: ", s.time, s.wind.storm) + pp.folks.map { String(format: "#%d %@/%d x%.0f y%.0f %@", $0.id, "\($0.job)", $0.phase, $0.x, $0.y, "\($0.mode)") }.joined(separator: "  "))
+            }
+        }
+        st.shot("fs2-storm", crops: [crop], zoom: 2, full: true)
+        print("storm: sat in the den at once: \(most)")
+        if most < went {            // кто-то пошёл к норе и не дошёл (на пути вырос сугроб) — прячется как все
+            let who: [String] = pp.folks.filter { denIds.contains($0.id) }.map { String(format: "#%d %@/%d x%.0f", $0.id, "\($0.job)", $0.phase, $0.x) }
+            print("storm: NOTE — of \(went) who went to the den, \(most) got in: \(who)")
+        }
+        if most == 0 { print("storm: FAIL — nobody got into the den"); ok = false }
+        // стихло — вылезают
+        s.wind.stopStorm()
+        var out = false
+        let t1 = s.time
+        var wasBuried = Set<Int32>(), outIds = Set<Int32>()
+        while s.time - t1 < 90 {
+            rest(st, 0.25)
+            for q in pp.folks where q.job == .buried && denIds.contains(q.id) { wasBuried.insert(q.id) }
+            if debug && Int(s.time * 4) % 4 == 0 {
+                print(String(format: "  t=%.1f after: ", s.time) + pp.folks.map { String(format: "#%d %@/%d st%d x%.0f y%.0f %@", $0.id, "\($0.job)", $0.phase, $0.stage, $0.x, $0.y, "\($0.mode)") }.joined(separator: "  "))
+            }
+            for q in pp.folks where denIds.contains(q.id) && q.job != .tunnel && q.job != .buried { outIds.insert(q.id) }
+            if denIds.allSatisfy({ id in outIds.contains(id) || !pp.folks.contains(where: { $0.id == id }) }) { out = true; break }
+        }
+        rest(st, 1)
+        st.shot("fs3-after", crops: [crop], zoom: 2, full: false)
+        print(String(format: "storm: all out %.0f s after the storm: %@; buried: %d", s.time - t1, "\(out)", pp.folks.filter { $0.job == .buried }.count))
+        if !out { print("storm: FAIL — someone is still in the den"); ok = false }
+        // (тех, кто пережидал снаружи, под стенкой, тоже может завалить — это забота ядра, здесь не считаем)
+        let lost = denIds.filter { id in !pp.folks.contains(where: { $0.id == id }) }.count
+        print("storm: of those in the den, were buried on the way out: \(wasBuried.count), did not survive: \(lost)")
+        if lost > 0 { print("storm: FAIL — the den must not kill"); ok = false }
+        return ok
+    }
+
+    // MARK: - Долгий прогон
+
+    /// Двадцать минут обычной жизни: сколько разных раскопок появилось и каких, какую долю времени дети
+    /// проводят в тоннелях, не роют ли снова там же, не лазит ли один и тот же ребёнок по одному ходу без конца.
+    static func long(_ st: PeopleStage, args: [String]) -> Int32 {
+        let s = st.sim, pp = s.people, u = st.unit
+        let secs = args.first.flatMap { Float($0) } ?? 1200
+        s.cfg.capScale = args.count > 1 ? Float(args[1]) ?? 1.4 : 1.4
+        s.cfg.people = 3
+        s.cfg.peopleEvents = true
+        s.forceFill = true; s.fillSurfaces(); s.forceFill = false
+        for i in s.snow.indices where s.snow[i] != 0 { s.hard[i] = 150 }
+        s.hardDirty = true
+        pp.summon()
+        var kidT: Float = 0, tunT: Float = 0, worst = 0.0
+        var born: [Int: (x: Float, t: Float)] = [:]         // где и когда начали
+        var kinds: [Int: Int] = [:]
+        var repeats = 0, most = 0, maxSeen = 0, denSat: Float = 0, buried = 0
+        var last: [Int32: Person.Job] = [:]
+        var lastPhase: [Int32: Int] = [:]
+        var buriedIn: [String: Int] = [:]
+        func cpu() -> Double { Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)) / 1e6 }
+        let t0 = s.time
+        var nextShot = t0 + 240
+        while s.time - t0 < secs {
+            if pp.folks.filter({ $0.look.kid && $0.home == -1 }).count < 2 && Int(s.time * 60) % 600 == 0 {
+                _ = place(st, kid: true, x: Float(150 + (Int(s.time) * 37) % 1100))        // чтобы дети были всегда
+            }
+            hold(st)
+            let c1 = cpu()
+            s.setCursor(x: -100, y: -100, dt: st.dt, on: false)
+            s.step(st.dt)
+            worst = max(worst, cpu() - c1)
+            for p in pp.folks {
+                if p.look.kid && p.home == -1 {
+                    kidT += st.dt
+                    if p.job == .tunnel { tunT += st.dt; if p.phase == 9 { denSat += st.dt } }
+                }
+                if p.job == .buried, let l = last[p.id], l != .buried {
+                    buried += 1
+                    buriedIn[l == .tunnel ? "tunnel phase \(lastPhase[p.id] ?? -1)" : "\(l)", default: 0] += 1
+                    if debug { st.shot(String(format: "fl-buried-%04.0f", s.time), crops: [CGRect(x: CGFloat(p.x) - 150, y: 800 - 190, width: 300, height: 190)], zoom: 3, full: false) }
+                }
+                last[p.id] = p.job
+                lastPhase[p.id] = p.phase
+            }
+            for T in pp.tunnels where !T.dead {
+                if born[T.id] == nil {
+                    let x = pp.tunnelMid(T, s)
+                    for (_, b) in born where s.time - b.t < 400 && abs(b.x - x) < 60 * u { repeats += 1; break }
+                    born[T.id] = (x, s.time)
+                }
+                kinds[T.id] = T.kinds
+                maxSeen = max(maxSeen, T.seen.values.max() ?? 0)
+            }
+            most = max(most, pp.tunnels.filter { !$0.dead }.count)
+            if s.time >= nextShot {
+                nextShot += 240
+                st.shot(String(format: "fl-%02d-min", Int((s.time - t0) / 60)), crops: [CGRect(x: 0, y: 800 - 190, width: 1400, height: 190)], zoom: 1, full: false)
+                for T in pp.tunnels where !T.dead { print("   " + describe(T, st)) }
+            }
+        }
+        var hist: [String: Int] = [:]
+        for (_, b) in kinds { for k in 1...9 where b & (1 << k) != 0 { hist[kindNames(1 << k), default: 0] += 1 } }
+        print(String(format: "long (cell %.0f, unit %.0f, cap x%.1f): %.0f s; excavations started %d (at most %d at once); kids spent %.1f%% of their time on tunnels (%.0f of %.0f kid-seconds, %.0f s of it sitting in a den)",
+                     st.cell, st.unit, s.cfg.capScale, s.time - t0, born.count, most, kidT > 0 ? tunT / kidT * 100 : 0, tunT, kidT, denSat))
+        print("  what was dug: \(hist.sorted { $0.key < $1.key }.map { "\($0.key) ×\($0.value)" }.joined(separator: ", "))")
+        print(String(format: "  new digs closer than 60u to a recent one: %d; most passes by one kid through one tunnel: %d; buried: %d %@; graves: %d; worst step %.2f ms cpu",
+                     repeats, maxSeen, buried, "\(buriedIn)", pp.graves.count, worst))
+        print("  how it went when a kid felt like tunnels: \(People.funLog.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        st.shot("fl-end", crops: [CGRect(x: 0, y: 800 - 190, width: 1400, height: 190)], zoom: 1, full: true)
+        return born.count >= 2 && repeats == 0 && worst < 15 ? 0 : 1
     }
 
     // MARK: - Стойки наста
@@ -369,6 +788,23 @@ enum FunTest {
             st.run(1)
             t += 1
             left.formIntersection(spikes(st))
+        }
+        if debug {
+            let s = st.sim
+            for c in left.sorted() {
+                let cols = max(0, c - 4)...min(s.W - 1, c + 5)
+                let piles: [Int] = cols.map { s.snowHeight($0, s.H) }
+                var hards: [Int] = []
+                for cc in cols {
+                    var h = -1
+                    for r in 0..<s.H where s.snow[r * s.W + cc] != 0 { h = Int(s.hard[r * s.W + cc]); break }
+                    hards.append(h)
+                }
+                let who: [String] = s.people.folks.map { String(format: "#%d %@/%d x%.0f", $0.id, "\($0.job)", $0.phase, $0.x) }
+                let balls: [String] = s.balls.map { String(format: "x%.0f r%.0f", $0.x, $0.r) }
+                print("  stake at col \(c): piles \(piles), hard at top \(hards); people: \(who); balls: \(balls)")
+                st.shot("stake-\(c)", crops: [CGRect(x: CGFloat(Float(c) * st.cell) - 100, y: CGFloat(s.hPt) - 160, width: 200, height: 160)], zoom: 4, full: false)
+            }
         }
         return left.sorted()
     }
@@ -427,7 +863,7 @@ enum FunTest {
             st.shot("fp-\(name)-0", crops: [crop], zoom: 3, full: false)
             let left = lasting(st)
             st.shot("fp-\(name)-1", crops: [crop], zoom: 3, full: false)
-            let rec = pp.tunnels.contains(where: { $0.id == T.id })
+            let rec = pp.tunnels.contains(where: { $0.id == T.id && !$0.dead })
             print("pillars \(name): spikes left \(left), record \(rec ? "kept" : "gone")")
             if !left.isEmpty { print("pillars \(name): FAIL — frozen stakes are still standing at columns \(left)"); ok = false }
         }
@@ -443,7 +879,7 @@ enum FunTest {
         }
         // запись состарилась, потом рухнул свод
         check("old", dig(170 + 600, stopAt: nil)) { T in
-            if let k = pp.tunnels.firstIndex(where: { $0.id == T.id }) { pp.tunnels[k].born = s.time - 400 }
+            if let k = pp.tunnels.firstIndex(where: { $0.id == T.id }) { pp.tunnels[k].used = s.time - 400 }
             st.run(2)
             if pp.tunnels.first(where: { $0.id == T.id })?.old != true { print("pillars old: FAIL — intact old tunnel must be kept and marked old"); ok = false }
             knock(T)
@@ -574,8 +1010,21 @@ enum FunTest {
         st.run(3)
         if let p = pp.folks.first(where: { $0.job == .tree }) { st.shot("fe1b-carry", crops: [near(p, w: 180, h: 120)], zoom: 4, full: false) }
         let t0 = s.time
-        while pp.trees.isEmpty && s.time - t0 < 120 { st.run(0.25); hold(st) }
-        guard let t = pp.trees.first else { print("tree: FAIL — not planted"); return false }
+        var again = 0
+        while pp.trees.isEmpty && s.time - t0 < 180 {
+            st.run(0.25)
+            hold(st)
+            // не донёс (упёрся в чужого снеговика, место заняли) — ёлку приносят снова, как и в жизни
+            if pp.trees.isEmpty && !pp.folks.contains(where: { $0.job == .tree || $0.obj == People.treeTag }) && again < 3 && pp.startTree(s) {
+                again += 1
+                print("tree: NOTE — the carrier gave up, another one comes (\(again))")
+            }
+        }
+        guard let t = pp.trees.first else {
+            st.shot("fe-not-planted", crops: [], zoom: 1, full: true)
+            print("tree: FAIL — not planted; people: \(pp.folks.map { String(format: "#%d %@/%d x%.0f tries %d", $0.id, "\($0.job)", $0.phase, $0.x, $0.tries) }); tunnels: \(pp.tunnels.map { describe($0, st) + " at \(Float($0.c0) * st.cell)…\(Float($0.c1) * st.cell)" })")
+            return false
+        }
         let box = CGRect(x: CGFloat(t.x) - 90, y: 800 - rows - 20, width: 180, height: rows + 20)
         st.run(0.6)
         st.shot("fe2-planting", crops: [box], zoom: 4, full: false)
@@ -650,7 +1099,7 @@ enum FunTest {
             }
             hold(st)
             st.run(0.25)
-            for T in pp.tunnels {
+            for T in pp.tunnels where !T.dead {
                 started.insert(T.id)
                 if T.done && done.insert(T.id).inserted && shots < 4 {
                     shots += 1
@@ -715,6 +1164,7 @@ enum FunTest {
         var frames: [String: Int] = [:]
         var stuck = false
         var spikeT: [Int: Int] = [:], spikeFails = 0
+        var kindBits = 0
         let t0 = s.time
         while s.time - t0 < secs {
             let d = target - st.cur
@@ -726,7 +1176,7 @@ enum FunTest {
                     target = SIMD2(p.x + rng.range(-60, 60), p.y - rng.range(0, 40))           // по человечкам
                 } else if let t = pp.trees.first, rng.f() < 0.3 {
                     target = SIMD2(t.x + rng.range(-20, 20), s.hPt - rng.range(20, 80))         // по ёлке
-                } else if let T = pp.tunnels.first, rng.f() < 0.4 {
+                } else if let T = pp.tunnels.first(where: { !$0.dead }), rng.f() < 0.4 {
                     target = SIMD2(pp.tunnelMid(T, s) + rng.range(-60, 60), s.hPt - rng.range(0, 50))  // по тоннелю
                 } else {
                     target = SIMD2(rng.range(0, s.wPt), rng.range(300, s.hPt))
@@ -764,7 +1214,7 @@ enum FunTest {
             }
             worst = max(worst, ms); worstWall = max(worstWall, wall)
             maxFolks = max(maxFolks, pp.folks.count)
-            for T in pp.tunnels { startedIds.insert(T.id); if T.done { doneIds.insert(T.id) } }
+            for T in pp.tunnels where !T.dead { startedIds.insert(T.id); if T.done { doneIds.insert(T.id) }; kindBits |= T.kinds }
             for p in pp.folks {
                 if !p.x.isFinite || !p.y.isFinite || p.y < -200 || p.y > s.hPt + 200 {
                     print("BAD person at \(p.x),\(p.y) job \(p.job) mode \(p.mode) t=\(s.time)")
@@ -808,7 +1258,7 @@ enum FunTest {
         print("  sleds \(sleds), trees \(treesN), refused \(refused); tunnels started \(startedIds.count), dug through \(doneIds.count); time in jobs: \(fr)")
         print("  " + pp.summary)
         st.shot("ff-end")
-        print("  stakes of frozen snow that stood longer than 12 s: \(spikeFails)")
+        print("  stakes of frozen snow that stood longer than 12 s: \(spikeFails); kinds of digging seen: \(kindNames(kindBits))")
         return worst < 15 && !stuck && spikeFails == 0 ? 0 : 1
     }
 }

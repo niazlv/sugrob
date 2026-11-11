@@ -265,7 +265,7 @@ final class People {
         var jobs: [String: Int] = [:]
         for p in folks { jobs["\(p.job)", default: 0] += 1 }
         let lad = ladders.map { "ladder#\($0.id) win \($0.win) active=\($0.active) done=\($0.done) broken=\($0.broken) stairs=\($0.stairsDone) rows=\($0.front)/\($0.rows.count) stock=\($0.stock) lifters=\($0.lifters.count)" }
-        let life = "graves=\(graves.count) igloos=\(igloos.count) fires=\(fires.count) tunnels=\(tunnels.count) trees=\(trees.count)"
+        let life = "graves=\(graves.count) igloos=\(igloos.count) fires=\(fires.count) tunnels=\(tunnels.filter { !$0.dead }.count) trees=\(trees.count)"
         return "people \(folks.count) [\(life)] \(jobs.sorted { $0.key < $1.key }.map { "\($0.key):\($0.value)" }.joined(separator: " ")) shots=\(shots.count) \(lad.joined(separator: "; "))"
     }
 
@@ -859,7 +859,7 @@ final class People {
                 let i = r * s.W + c
                 if s.ledge[i] != 0 { rigid = true; continue }
                 if s.snow[i] == 0 { continue }
-                if isStair(s, c, r) || reserved(s, c) { rigid = true; continue }
+                if isStair(s, c, r) || reserved(s, c) || tunnelKeep(s, c, r) { rigid = true; continue }   // не рубить сквозь чужую нору
                 s.snow[i] = 0
                 cut += 1
                 if cut <= 14 {      // выбрасывает снег назад
@@ -1203,7 +1203,7 @@ final class People {
                 if free {
                     release(&p, s)
                     if p.home != -1 && p.stand == -2 { p.job = .home; next(&p, 0) }      // жители — домой
-                    else { p.job = .shelter; next(&p, 0) }
+                    else if p.stand != -2 || !denShelter(&p, s) { p.job = .shelter; next(&p, 0) }    // рядом нора — в неё, иначе в кучку
                 }
             }
         }
