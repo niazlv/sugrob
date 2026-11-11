@@ -320,6 +320,9 @@ final class Overlay: NSObject, MTKViewDelegate {
             guard w.widget ? rules.widgets : rules.windows else { continue }
             guard w.rect.width >= (rules.narrow ? 60 : 120), w.rect.height >= 40 else { continue }
             guard y > sf.minY + menuBar + (rules.menuWindows ? -1 : 12), y > sf.minY + 6, y < sf.maxY - 12 else { continue }
+            // Полноэкранное приложение упирается в верх экрана (на экране с вырезом — в чёрную полосу под ним):
+            // «тонкая шапка у строки меню» там превратилась бы в полоску снега в одну ячейку по самому верху.
+            if spaceId == Overlay.fullscreenKey && y <= sf.minY + max(menuBar, screen.safeAreaInsets.top) + 2 { continue }
             var ivs: [(CGFloat, CGFloat)] = [(max(w.left + edge, sf.minX), min(w.right - edge, sf.maxX))]
             // вычесть то, что закрыто окнами спереди (и то, над чем нет свободного места)
             for j in 0..<i {
