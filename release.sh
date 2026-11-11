@@ -8,8 +8,10 @@
 #      и ставит версию в Resources/Info.plist;
 #   2. собирает универсальную сборку (./build.sh --dist);
 #   3. подписывает update.json ключом ~/.config/sugrob/ota-ed25519.key (tools/ota_sign.swift);
-#   4. коммитит Info.plist, ставит тег v<версия>, пушит;
-#   5. создаёт релиз с Sugrob.zip и update.json и проверяет, что GitHub отдаёт именно их.
+#   4. собирает установочный образ Sugrob.dmg (tools/dmg/make_dmg.sh) — для скачивания руками
+#      и каталогов приложений; автообновление берёт Sugrob.zip, образ ему не нужен;
+#   5. коммитит Info.plist, ставит тег v<версия>, пушит;
+#   6. создаёт релиз с Sugrob.zip, Sugrob.dmg и update.json и проверяет, что GitHub отдаёт именно их.
 #
 # Нужны: gh (gh auth login), чистое рабочее дерево, ключ подписи. Установленные копии
 # принимают только подпись этим ключом — без него выпустить обновление нельзя.
@@ -63,14 +65,17 @@ mkdir -p $OUT
 cp -f build/Sugrob.zip $OUT/Sugrob.zip
 .build/ota-sign manifest $OUT/Sugrob.zip "$VERSION" $BUILD "$MINOS" "$NOTES" "$ZIP_URL" > $OUT/update.json
 .build/ota-sign verify $OUT/update.json $OUT/Sugrob.zip || { undo; die "Манифест не проходит проверку"; }
+tools/dmg/make_dmg.sh build/dist/Sugrob.app $OUT/Sugrob.dmg || { undo; die "Образ не собрался, Info.plist возвращён"; }
 
 git commit -q -m "Сугроб $VERSION ($BUILD)" -- $PLIST
 git tag "$TAG"
 git push -q origin HEAD "$TAG"
 gh release create "$TAG" --repo "$REPO" --verify-tag --title "Сугроб $VERSION" --notes "$NOTES" \
-    $OUT/Sugrob.zip $OUT/update.json
+    $OUT/Sugrob.zip $OUT/Sugrob.dmg $OUT/update.json
 
 curl -fsSL --max-time 30 "$FEED" | cmp -s - $OUT/update.json || die "GitHub отдаёт не тот update.json"
+[[ $(curl -fsSL --max-time 120 "https://github.com/$REPO/releases/latest/download/Sugrob.dmg" | shasum -a 256 | cut -c1-64) == $(shasum -a 256 $OUT/Sugrob.dmg | cut -c1-64) ]] \
+    || die "GitHub отдаёт не тот образ"
 [[ $(curl -fsSL --max-time 120 "$ZIP_URL" | shasum -a 256 | cut -c1-64) == $(shasum -a 256 $OUT/Sugrob.zip | cut -c1-64) ]] \
     || die "GitHub отдаёт не тот архив"
 echo "Опубликовано: https://github.com/$REPO/releases/tag/$TAG"

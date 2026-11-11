@@ -393,7 +393,7 @@ function menuModel() {
       act('support', () => { arranged = true; showWin('donate'); }),
       act(paused ? 'resume' : 'pause', () => setPaused(!paused)),
       '-',
-      link('download', 'https://github.com/niazlv/sugrob/releases/latest'),
+      link('download', 'https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.dmg'),
       link('source', 'https://github.com/niazlv/sugrob'),
     ] },
     { title: t('m_weather'), items: [

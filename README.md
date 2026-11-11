@@ -15,7 +15,7 @@ English · [Русский](README.ru.md)
 
 <img src="docs/hero.webp" width="900" alt="The cursor pushes snow off a window; it pours onto the Dock, and a quick flick scatters the pile">
 
-**[Download Sugrob.zip](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.zip)**
+**[Download Sugrob.dmg](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.dmg)**
 
 </div>
 
@@ -56,8 +56,9 @@ Everything can be adjusted or switched off from the ❄ menu.
 
 ## Install
 
-1. Download [Sugrob.zip](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.zip)
-   and move `Sugrob.app` to Applications.
+1. Download [Sugrob.dmg](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.dmg),
+   open it and drag Sugrob onto the Applications folder. (The same app as a plain archive is
+   [Sugrob.zip](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.zip).)
 2. The app is not notarized by Apple, so the first launch needs your approval: try to open it,
    then go to **System Settings → Privacy & Security** and click **Open Anyway**. Or remove the
    quarantine flag in Terminal:
@@ -88,31 +89,10 @@ off in the menu.
 | Crack the icy crust | Strike it sharply with the cursor, or throw a snowball |
 | Tease the little people | Clip one with a fast cursor or a ball, and expect a snowball back |
 
-<details>
-<summary><b>The menu is in Russian for now. Here is a glossary.</b></summary>
-
-| In the menu | Meaning |
-| --- | --- |
-| Поставить снег на паузу / Вернуть зиму | Pause the snow / bring it back |
-| Насыпать снег сейчас | Cover every surface with snow right now |
-| Убрать весь снег | Remove all snow |
-| Погода: Лёгкий снег, Снегопад, Метель | Weather: light snow, snowfall, blizzard |
-| Погода → Ветер, Штиль | Wind, calm |
-| Погода → Иногда налетает буран | A snow squall blows in now and then |
-| Сугробы: Низкие, Средние, Высокие | Drift height: low, medium, high |
-| Сугробы → Растут сами | Drifts grow on their own (off: only flakes that actually land build them) |
-| Сугробы → Слёживаются и подмерзают | Snow packs down and freezes over time |
-| Сугробы → Курсор смахивает снег | The cursor brushes snow |
-| Сугробы → Где лежит снег | Where snow may settle: windows, widgets, the Dock, the bottom of the screen |
-| Человечки | Little people: how often they visit and what they are allowed to do |
-| Внешний вид | Appearance: voxel size and the window corner radius used for the snow line |
-| Как играть | How to play: a list of hints |
-| О Сугробе | About Sugrob |
-| Запускать при входе | Launch at login |
-| Обновления | Updates |
-| Выйти из Сугроба | Quit |
-
-</details>
+The app speaks your system language: English, Russian, German, Spanish, French, Portuguese,
+Simplified Chinese and Japanese; any other language falls back to English. The translations
+(everything except the Russian original) were made by AI and have not been checked by native
+speakers, so corrections are welcome: the strings live in `Resources/<language>.lproj/Localizable.strings`.
 
 ## Resource use
 
