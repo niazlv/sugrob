@@ -35,11 +35,16 @@ jobs:
       - uses: actions/checkout@v4
 
       # The SDK version must match the toolchain exactly.
+      # On Linux `swift sdk install` verifies and installs the bundle and then aborts on exit
+      # (a crash in the downloader's teardown), so its exit code is ignored and the result is
+      # checked by listing the installed SDKs.
       - name: Swift SDK for WebAssembly
         run: |
           swift --version
           swift sdk install https://download.swift.org/swift-6.4.2-release/wasm-sdk/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE_wasm.artifactbundle.tar.gz \
-            --checksum 83baca83553f8c443cda7b84800912e6e709c3acd2e7ebf277794ca5836c0da5
+            --checksum 83baca83553f8c443cda7b84800912e6e709c3acd2e7ebf277794ca5836c0da5 || true
+          swift sdk list
+          swift sdk list | grep -qx 'swift-6.4.2-RELEASE_wasm'
 
       - name: Build sugrob.wasm
         run: ./web/build.sh
