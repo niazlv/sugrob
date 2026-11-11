@@ -273,6 +273,98 @@ enum PeopleTest {
             print("step works: \(sim.people.stepWorks.count)")
             return 0
         }
+        if what == "dock" {
+            // Dock во всю ширину выезжает и прячется (как у автоскрытого): дом с жильцами, костёр, гости и
+            // лестница должны ехать вместе со снегом и остаться целыми; никого не заваливает.
+            sim.cfg.people = 2
+            sim.cfg.peopleLadders = true
+            sim.cfg.peopleStay = false
+            sim.cfg.peopleEvents = false
+            let P = sim.people
+            let house = P.debugHouse(sim, x: 520, door: 1)
+            _ = P.debugSpawn(sim, x: 300, y: hPt - 30)
+            _ = P.debugSpawn(sim, x: 760, y: hPt - 30, kid: true)
+            P.summon()
+            let fy = (0..<sim.H).first(where: { sim.snow[$0 * sim.W + Int(640 / cell)] != 0 }).map { Float($0) * cell } ?? hPt
+            P.fires.append(Fire(id: 9000, x: 640, y: fy, born: sim.time, until: sim.time + 1000))
+            run(40)
+            while sim.time < 300 && (P.ladders.first?.front ?? 0) < 20 { run(5) }     // гости пришли, лестница уже в работе
+            func ledgesWith(dockY: Float?) {
+                var l = wins.enumerated().map {
+                    Ledge(y: Float($1.minY), x0: Float($1.minX) + 5.4, x1: Float($1.maxX) - 5.4, kind: 1, win: $0 + 100,
+                          ox: Float($1.minX), wr: Float($1.maxX), r: 18)
+                }
+                let b = wins.enumerated().map { WinBox(x0: Float($1.minX), x1: Float($1.maxX), y0: Float($1.minY), y1: Float($1.maxY), win: $0 + 100) }
+                if let y = dockY { l.append(Ledge(y: y, x0: 66, x1: 1334, kind: 2, win: -1, ox: 60, wr: 1340, r: 20)) }
+                sim.setLedges(l, windows: b)
+            }
+            func state(_ tag: String) -> (laid: Int, buried: Int, off: Float) {
+                let g = P.igloos.indices.contains(house) ? P.igloos[house] : nil
+                let laid = g?.blocks.filter { $0 }.count ?? -1
+                let buried = P.folks.filter { $0.job == .buried || $0.job == .panic || $0.job == .rescue }.count
+                var off: Float = 0          // насколько ноги стоящих на полу расходятся с опорой под ними
+                for p in P.folks where p.mode == .ground && p.stand == -2 {
+                    if let gy = P.ground(sim, x: p.x, feet: p.y - 30, up: 0) { off = max(off, abs(gy - p.y)) } else { off = 999 }
+                }
+                let f = P.fires.first
+                let fireOff = f.map { ff in abs((P.ground(sim, x: ff.x, feet: ff.y - 30, up: 0) ?? 9999) - ff.y) } ?? -1
+                print(String(format: "%@: house blocks %d, baseY %.0f; buried/rescuing %d; graves %d; feet off ground by %.0f pt; fire off surface by %.0f pt, alive %@; ladder %@",
+                             tag, laid, g?.baseY ?? -1, buried, P.graves.count, off, fireOff, (f.map { $0.until > sim.time } ?? false) ? "yes" : "no",
+                             P.ladders.first.map { "rows \($0.front)/\($0.rows.count) broken=\($0.broken) docked=\($0.docked)" } ?? "none"))
+                return (laid, buried, off)
+            }
+            let view = CGRect(x: 180, y: 560, width: 760, height: 240)
+            let s0 = state("before")
+            shot("dk0-before", crops: [view], zoom: 2)
+            var bad = 0
+            for cycle in 0..<3 {
+                // выезжает: первый шаг — liftFloor, дальше карниз едет через shiftPile
+                var y = hPt - 22
+                func dbg(_ t: String) {
+                    guard ProcessInfo.processInfo.environment["SUGROB_PEOPLE_DEBUG"] != nil, P.igloos.indices.contains(house) else { return }
+                    let g = P.igloos[house]
+                    let c = Int(g.x / cell)
+                    var col = ""
+                    for r in (sim.H - 34)..<sim.H { col += sim.snow[r * sim.W + c] != 0 ? "#" : (sim.ledge[r * sim.W + c] != 0 ? "=" : (sim.mask[r * sim.W + c] != 0 ? "m" : ".")) }
+                    print("   \(t): laid \(g.blocks.filter { $0 }.count) baseY \(g.baseY) floorRow \(g.floorRow) based \(g.based) need \(g.baseNeed) col[\(col)]")
+                }
+                dbg("pre")
+                sim.liftFloor(x0: 66, x1: 1334, toY: y)
+                dbg("lifted")
+                ledgesWith(dockY: y)
+                run(1.0 / 30)
+                dbg("step1")
+                run(0.6)
+                dbg("0.6s")
+                while y > hPt - 70 {
+                    let ny = max(hPt - 70, y - 12)
+                    func c(_ v: Float) -> Int { Int((v / cell).rounded()) }
+                    for sg in sim.segs where sg.win == -1 { sim.shiftPile(sg, cols: 0, rows: c(ny) - c(y), vx: 0, vy: 0) }
+                    y = ny
+                    ledgesWith(dockY: y)
+                    run(1.0 / 30)
+                }
+                run(0.5)
+                let s1 = state("cycle \(cycle): dock up")
+                if cycle == 0 { shot("dk1-up", crops: [view.offsetBy(dx: 0, dy: -60)], zoom: 2) }
+                run(6)
+                let s2 = state("cycle \(cycle): dock up, 6 s later")
+                // прячется
+                sim.dropDock()
+                ledgesWith(dockY: nil)
+                run(1)
+                let s3 = state("cycle \(cycle): dock hidden")
+                if cycle == 0 { shot("dk2-hidden", crops: [view], zoom: 2) }
+                for st in [s1, s2, s3] where st.laid != s0.laid || st.buried > 0 || st.off > 14 { bad += 1 }
+                run(8)
+            }
+            run(20)
+            let s9 = state("after")
+            shot("dk9-after", crops: [view], zoom: 2)
+            if s9.laid != s0.laid || P.graves.count > 0 { bad += 1 }
+            print(bad == 0 ? "dock: OK" : "dock: FAIL (\(bad))")
+            return bad == 0 ? 0 : 1
+        }
         if what == "life" {
             // Долгая спокойная жизнь со всем включённым: гости, лестницы, дома, происшествия, бураны.
             let secs = args.count > 3 ? Float(args[3]) ?? 1500 : 1500

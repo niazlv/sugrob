@@ -656,7 +656,8 @@ extension People {
             while r >= lim && s.snow[r * s.W + c] != 0 { extra += 1; r -= 1 }
             var seen = false
             r = g.floorRow
-            while r < s.H {
+            let bottom = floorBottom(s, c)          // под поднятым Dock площадка кончается на нём
+            while r < bottom {
                 let i = r * s.W + c
                 if s.snow[i] != 0 { seen = true }
                 else if s.ledge[i] == 0 { st.need += 1; bad += 1; if !seen { drop += 1 } }
@@ -699,7 +700,7 @@ extension People {
                 rTop = min(rTop, r)
                 r -= 1
             }
-            r = s.H - 1
+            r = floorBottom(s, col) - 1
             while r >= g.floorRow {                             // подсыпать
                 let i = r * s.W + col
                 if s.snow[i] == 0 && s.ledge[i] == 0 {
@@ -1717,6 +1718,7 @@ extension People {
             var f = fires[i]
             if s.time > f.until + 8 { fires.remove(at: i); continue }
             if let y = ground(s, x: f.x, feet: f.y, up: 6 * u) { f.y += max(-20 * u * dt, min(40 * u * dt, y - f.y)) }
+            else if s.time < f.until { f.until = s.time }                       // засыпало снегом — гаснет
             if s.wind.storm > 0.6 && s.time < f.until { f.until = s.time }      // буран задувает
             if s.time < f.until {
                 f.acc += dt

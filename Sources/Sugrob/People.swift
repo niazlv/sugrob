@@ -146,6 +146,7 @@ struct Ladder {
     var frost: Float = 0        // 0…1: насколько занесло перекладины
     var checkAt: Float = 0
     var dirty = true            // что-то отломилось или добавилось: проверить, что держится
+    var docked = false          // под ней поднят Dock: ступени временно уехали вверх, всё ждёт
     var base = -2               // на чём стоит: -2 — низ экрана (со ступенями), иначе номер окна (ярус: с его карниза)
     var baseY: Float = 0        // линия карниза окна-основания
     var bot = 0                 // нижняя строка приставной лестницы
@@ -242,7 +243,8 @@ final class People {
     var trees: [Tree] = []
     var nextObjId = 1
     var stepWorks: [StepWork] = []      // ступеньки, которые утаптывают, чтобы выбраться из ямы
-    var dockZone: (Float, Float)? = nil // полоса Dock по x: в ней не строят
+    var dock: Ledge? = nil              // поднятый Dock (его карниз) — на этом шаге
+    var dockStamp: Float = -1
     var windStorm: Float = 0            // сила бурана на этом шаге (копия sim.wind.storm)
     var shelterX: Float = -1            // где пережидают буран (-1 — бурана нет)
     var wallTop = -1                    // стенка от ветра: строка её верха (-1 — не начата)
@@ -277,6 +279,7 @@ final class People {
         }
         u = max(2, s.cfg.peopleSize)
         windStorm = s.wind.storm
+        dock = s.segs.first(where: { $0.kind == 2 })
         trackWindows(s, dt)
         validate(s, dt)
         stepWorks.removeAll { s.time - $0.born > 240 || ($0.doneAt >= 0 && s.time - $0.doneAt > 120) }
@@ -408,40 +411,53 @@ final class People {
         boxAcc = 0
     }
 
-    /// Dock выехал (dy < 0) или спрятался (dy > 0) и повёз снег на участке x0…x1 (см. Sim.liftFloor,
-    /// Sim.dropDock): всё, что стояло там на полу, едет вместе со снегом. Заодно запоминаем, где Dock:
-    /// в его полосе ничего не строят, даже когда он спрятан.
+    // Dock. Когда он выезжает, Sim поднимает на него весь снег с пола в его полосе (liftFloor), пока он
+    // едет — двигает его карниз (shiftPile), прячется — опускает снег обратно (dropDock). Всё, что стоит
+    // на этом снегу — человечки, дома, костры, палочки, — едет вместе с ним (`dockMoved`), а опорой
+    // «пола» в полосе Dock считается его верх (`pile`). У Dock во всю ширину экрана это весь пол.
+
+    /// Dock выехал (dy < 0) или спрятался (dy > 0) и повёз снег на участке x0…x1 (Sim.liftFloor, Sim.dropDock).
     func floorShifted(_ s: Sim, x0: Float, x1: Float, dy: Float) {
-        dockZone = (x0 - 6, x1 + 6)
-        for i in folks.indices where folks[i].stand == -2 && folks[i].x > x0 && folks[i].x < x1
-            && (folks[i].mode == .ground || folks[i].mode == .crawl || folks[i].mode == .inside) {
-            // вверх едут те, кто был у пола; вниз — те, кто стоял на Dock
-            if dy < 0 ? folks[i].y > s.hPt - 110 : folks[i].y < s.hPt - 20 { folks[i].y += dy }
-        }
-        for k in graves.indices where graves[k].stand == -2 && graves[k].x > x0 && graves[k].x < x1 { graves[k].topY += dy }
-        for k in igloos.indices where igloos[k].x > x0 && igloos[k].x < x1 { igloos[k].baseY += dy }
-        // лестница или ступеньки, попавшие в полосу Dock, этого не переживают
-        for k in ladders.indices where ladders[k].base == -2 && !ladders[k].broken {
-            let cols = stairCols(ladders[k], s)
-            if Float(cols.upperBound + 1) * s.cell > x0 && Float(cols.lowerBound) * s.cell < x1 {
-                var L = ladders[k]
-                collapse(&L, s)
-                ladders[k] = L
-            }
-        }
-        stepWorks.removeAll { Float($0.wallCol) * s.cell > x0 - 60 && Float($0.wallCol) * s.cell < x1 + 60 }
-        tunnels.removeAll { Float($0.c1 + 1) * s.cell > x0 && Float($0.c0) * s.cell < x1 }
+        let base = dy < 0 ? Float(s.H) * s.cell : (s.segs.first(where: { $0.kind == 2 })?.y ?? Float(s.H) * s.cell + dy)
+        dockMoved(s, x0: x0, x1: x1, baseY: base, dy: dy)
     }
 
-    /// Столбец в полосе Dock (известной с тех пор, как он первый раз выехал).
+    /// Снег на Dock в полосе x0…x1, лежавший на высоте baseY, сдвинулся на dy — и всё, что на нём стоит.
+    func dockMoved(_ s: Sim, x0: Float, x1: Float, baseY: Float, dy: Float) {
+        guard dy != 0, dockStamp != s.time else { return }
+        dockStamp = s.time
+        for i in folks.indices where folks[i].stand == -2 && folks[i].x > x0 && folks[i].x < x1 && folks[i].y < baseY + 8
+            && (folks[i].mode == .ground || folks[i].mode == .crawl || folks[i].mode == .inside) {
+            folks[i].y += dy
+        }
+        for k in graves.indices where graves[k].stand == -2 && graves[k].x > x0 && graves[k].x < x1 { graves[k].topY += dy }
+        for k in igloos.indices where igloos[k].x > x0 && igloos[k].x < x1 {
+            var g = igloos[k]
+            clearMask(&g, s)            // купол как опора для снега переедет вместе с домом (поставится заново на шаге)
+            g.baseY += dy
+            igloos[k] = g
+        }
+        for k in fires.indices where fires[k].x > x0 && fires[k].x < x1 { fires[k].y += dy }
+        for k in s.balls.indices where s.balls[k].held && s.balls[k].x > x0 && s.balls[k].x < x1 { s.balls[k].y += dy }   // шар в руках у человечка
+        // ходы и ступеньки из ям привязаны к строкам сетки — их записи больше не годятся (сам снег переехал целым)
+        stepWorks.removeAll { Float($0.wallCol) * s.cell > x0 - 60 && Float($0.wallCol) * s.cell < x1 + 60 }
+        tunnels.removeAll { Float($0.c1 + 1) * s.cell > x0 && Float($0.c0) * s.cell < x1 }
+        dock = nil      // до следующего шага неизвестно, где он
+    }
+
+    /// Над столбцом сейчас поднят Dock: пока он не спрячется, ничего нового здесь не начинают.
     func inDock(_ s: Sim, _ c: Int) -> Bool {
-        guard let z = dockZone else { return false }
+        guard let d = dock else { return false }
         let x = (Float(c) + 0.5) * s.cell
-        return x > z.0 && x < z.1
+        return x > d.x0 - 6 && x < d.x1 + 6
     }
 
     /// Окно сдвинулось вместе со своим сугробом (см. Sim.shiftPile): человечки на нём едут с ним.
     func pileShifted(_ s: Sim, _ seg: Ledge, dx: Float, dy: Float) {
+        if seg.kind == 2 {      // Dock едет: стоящие на нём числятся стоящими на полу
+            dockMoved(s, x0: seg.x0, x1: seg.x1, baseY: seg.y, dy: dy)
+            return
+        }
         for i in folks.indices where folks[i].mode == .ground && folks[i].stand == seg.win && folks[i].stamp != s.time
             && folks[i].x >= seg.x0 - 4 && folks[i].x <= seg.x1 + 4 {
             folks[i].x += dx
@@ -453,7 +469,27 @@ final class People {
     // MARK: - Сетка
 
     /// Высота сугроба над строкой base в столбце c.
-    func pile(_ s: Sim, _ c: Int, _ base: Int) -> Int { s.snowHeight(c, base) }
+    /// Строка, на которой лежит снег «пола» в столбце c: низ экрана, а в полосе поднятого Dock — его верх.
+    func floorBottom(_ s: Sim, _ c: Int) -> Int {
+        if let d = dock {
+            let x = (Float(c) + 0.5) * s.cell
+            if x >= d.x0 && x <= d.x1 { return ledgeRow(s, d, c) }
+        }
+        return s.H
+    }
+
+    /// Для пола (base == s.H) в полосе поднятого Dock опора — его верх: высота считается от низа экрана
+    /// вместе с самим Dock, так что `s.H - pile(...)` по-прежнему строка верхней ячейки снега.
+    func pile(_ s: Sim, _ c: Int, _ base: Int) -> Int {
+        if base >= s.H, let d = dock {
+            let x = (Float(c) + 0.5) * s.cell
+            if x >= d.x0 && x <= d.x1 {
+                let b = ledgeRow(s, d, c)
+                return s.snowHeight(c, b) + (s.H - b)
+            }
+        }
+        return s.snowHeight(c, base)
+    }
 
     /// Эта ячейка — часть чьих-то ступеней: из них снег не берут.
     func isStair(_ s: Sim, _ c: Int, _ r: Int) -> Bool {
@@ -2124,6 +2160,17 @@ final class People {
             }
             if !L.rows.isEmpty { damage(&L, s); weather(&L, s, dt) }
             if let b = boxes[L.win]?.box { L.boxY1 = b.y1 }
+            L.docked = false
+            if L.base == -2, let d = dock {
+                let cols = stairCols(L, s)
+                L.docked = Float(cols.upperBound + 1) * s.cell > d.x0 && Float(cols.lowerBound) * s.cell < d.x1
+            }
+            if L.docked {               // ступени вернутся на место, когда Dock спрячется
+                L.usedAt = max(L.usedAt, s.time - 200)
+                ladders[k] = L
+                k += 1
+                continue
+            }
             if !L.broken { tamp(L, s) }
             refresh(&L, s)
             if L.dirty || s.time - L.checkAt > 0.5 { settleLadder(&L, s); refresh(&L, s) }
@@ -2256,7 +2303,7 @@ final class People {
                 for sg in s.segs where sg.win != b.win && sg.win != base && sg.x1 > x0 - cell && sg.x0 < x1 + cell
                     && sg.y > topY - 24 && sg.y < botY + (base == -2 ? 10000 : 6) { ok = false; break }
                 for o in ladders where o.base == base && stairCols(o, s).upperBound + 12 > lo && stairCols(o, s).lowerBound - 12 < hi { ok = false; break }
-                if base == -2 && (inDock(s, lo) || inDock(s, hi) || inDock(s, (lo + hi) / 2)) { ok = false }
+                if base == -2 && (inDock(s, lo) || inDock(s, hi) || inDock(s, (lo + hi) / 2)) { ok = false }      // Dock поднят — не сейчас
                 if !ok { continue }
                 var need = 0
                 if base == -2 { for c in stairCols(L, s) { need += max(0, stairH(L, c) - pile(s, c, s.H)) } }
@@ -2354,6 +2401,7 @@ final class People {
     func runGather(_ p: inout Person, _ s: Sim, _ dt: Float) {
         guard let k = ladderIndex(p.ladder), ladders[k].active, ladders[k].base == p.stand else { release(&p, s); idle(&p, 0.5); return }
         let L = ladders[k]
+        if L.docked { settle(&p, s, dt); p.t = min(p.t, 1); return }       // Dock поднят — ждут
         switch p.phase {
         case 0:
             settle(&p, s, dt)
@@ -2441,6 +2489,7 @@ final class People {
             return
         }
         let L = ladders[k]
+        if L.docked { p.anim = .hang; p.t = min(p.t, 1); return }           // Dock поднят — ждут
         let K = L.lifters.count
         let plat = platformY(L, s)
         let hp = max(0, Float(L.front) * s.cell - 11 * u)       // где стоит тот, кто лепит
@@ -2533,6 +2582,7 @@ final class People {
         switch p.phase {
         case 0:
             if p.stand != L.base { idle(&p, 0.5); return }
+            if L.docked { settle(&p, s, dt); p.t = min(p.t, 1); return }    // Dock поднят — подождать
             if walk(&p, s, to: footX(L, s), speed: 24 * u, dt) && p.mode == .ground
                 && (L.base == -2 ? abs(p.y - platformY(L, s)) < 3 * s.cell : p.y <= platformY(L, s) + 3) {
                 p.x = footX(L, s)
