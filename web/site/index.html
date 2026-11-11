@@ -57,7 +57,7 @@
           </a>
           <a class="btn" href="https://github.com/niazlv/sugrob" target="_blank" rel="noopener" data-i="source"></a>
         </div>
-        <p class="meta" data-i="meta"></p>
+        <p class="meta"><span data-i="meta"></span> · <button type="button" class="link" data-openwin="donate" data-i="support"></button></p>
         <p class="note" id="engine-note" hidden></p>
       </div>
     </section>
@@ -104,6 +104,31 @@
       </div>
     </section>
 
+    <section class="win dark donate-win" data-win="donate" aria-labelledby="t-donate">
+      <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-donate" data-i="w_donate"></span></div>
+      <div class="body donate">
+        <div class="dn-head">
+          <img src="img/icon-64.png" width="46" height="46" alt="">
+          <div>
+            <b data-i="dn_title"></b>
+            <p data-i="dn_intro"></p>
+          </div>
+        </div>
+        <div class="nets" id="nets"></div>
+        <div class="qr-card"><div class="qr" id="qr"></div></div>
+        <div class="net-line"><b id="net-name"></b><span class="badge" id="net-badge" data-i="dn_low"></span></div>
+        <p class="net-note" id="net-note"></p>
+        <button type="button" class="addr" id="addr">
+          <span class="addr-main"><code id="addr-text"></code><em id="addr-hint"></em></span>
+          <span class="copy" aria-hidden="true">
+            <svg class="i-copy" viewBox="0 0 24 24"><rect x="8.500" y="8.500" width="11" height="11" rx="2.500" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.500 5.500v-.500a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h.500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <svg class="i-ok" viewBox="0 0 24 24"><path d="m5 12.500 4.500 4.500L19 7.500" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <p class="warn" data-i="dn_warn"></p>
+      </div>
+    </section>
+
     <section class="win dark" data-win="engine" aria-labelledby="t-engine">
       <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-engine" data-i="w_engine"></span></div>
       <div class="body mono">
@@ -129,6 +154,7 @@
     <button type="button" data-open="try" class="d-glyph g1"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="m5 12.500 4.500 4.500L19 7.500"/></svg><span class="tip" data-i="w_try"></span></button>
     <button type="button" data-open="people" class="d-glyph g5"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.200a3.300 3.300 0 1 1 0 6.600 3.300 3.300 0 0 1 0-6.600zM7.500 12h9a2 2 0 0 1 2 2v3.500h-2.300V21h-2.700v-4h-3v4H7.800v-3.500H5.500V14a2 2 0 0 1 2-2z"/></svg><span class="tip" data-i="w_people"></span></button>
     <button type="button" data-open="engine" class="d-glyph g2"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.100" stroke-linecap="round" stroke-linejoin="round" d="m8 8-4 4 4 4m8-8 4 4-4 4m-2.500-11-3 14"/></svg><span class="tip" data-i="w_engine"></span></button>
+    <button type="button" data-open="donate" class="d-glyph g6"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.500 4.600 13.300a4.700 4.700 0 0 1 6.600-6.700l.800.800.800-.800a4.700 4.700 0 0 1 6.600 6.700z"/></svg><span class="tip" data-i="w_donate"></span></button>
     <span class="sep"></span>
     <a href="https://github.com/niazlv/sugrob/releases/latest" target="_blank" rel="noopener" class="d-glyph g3"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5 19.500h14"/></svg><span class="tip" data-i="download"></span></a>
     <a href="https://github.com/niazlv/sugrob" target="_blank" rel="noopener" class="d-glyph g4"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.500a9.700 9.700 0 0 0-3.070 18.900c.490.090.670-.210.670-.470v-1.700c-2.700.590-3.270-1.150-3.270-1.150-.440-1.120-1.080-1.420-1.080-1.420-.880-.600.070-.590.070-.590.980.070 1.490 1 1.490 1 .870 1.480 2.270 1.050 2.830.800.090-.630.340-1.050.610-1.290-2.160-.250-4.420-1.080-4.420-4.790 0-1.060.380-1.920 1-2.600-.100-.250-.430-1.230.090-2.570 0 0 .810-.260 2.670.990a9.200 9.200 0 0 1 4.860 0c1.850-1.250 2.670-.990 2.670-.990.530 1.340.200 2.320.100 2.570.620.680 1 1.540 1 2.600 0 3.720-2.270 4.540-4.430 4.780.350.300.660.890.660 1.800v2.660c0 .260.170.560.670.470A9.700 9.700 0 0 0 12 2.500Z"/></svg><span class="tip">GitHub</span></a>

@@ -3,6 +3,8 @@
 
 import { loadEngine, SET, ACT, TASK } from './engine.js';
 import { createRenderer } from './render.js';
+import { qrSvg } from './qr.js';
+import { NET_ICONS } from './net-icons.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21,6 +23,18 @@ const T = {
     meta: 'Бесплатно · открытый код, MIT · macOS 13 и новее',
     mitten: 'Варежка',
     w_hero: 'Сугроб', w_try: 'Что попробовать', w_engine: 'Под капотом', w_people: 'Человечки',
+    w_donate: 'Поддержать', support: 'Поддержать проект',
+    dn_title: 'Сугроб бесплатный',
+    dn_intro: 'Без рекламы и подписок. Если он вас порадовал и не жалко — переведите доллар-другой. Не обязательно, но приятно.',
+    dn_low: 'самая низкая комиссия',
+    dn_warn: 'В кошельке выберите ту же сеть, что и здесь: перевод в другой сети не дойдёт.',
+    dn_copy: 'Нажмите, чтобы скопировать адрес', dn_copied: 'Адрес скопирован',
+    dn_select: 'Адрес выделен — скопируйте его (⌘C или Ctrl+C)',
+    dn_bnb: 'Подойдут BNB, USDT и другие токены этой сети.',
+    dn_trx: 'Подойдут TRX и USDT в сети Tron.',
+    dn_sol: 'Подойдут SOL и токены сети Solana.',
+    dn_eth: 'Тот же адрес работает в Base, Arbitrum, Optimism, Polygon и Linea.',
+    dn_btc: 'Обычный адрес Bitcoin (Native SegWit).',
     pp_intro: 'Обычно они сами решают, чем заняться. Здесь им можно подсказать: возьмётся тот, кто свободен.',
     t_summon: 'Позвать ещё', t_ladder: 'Строить лестницу', t_tunnel: 'Рыть тоннель', t_igloo: 'Строить иглу',
     t_angel: 'Снежный ангел', t_tree: 'Принести ёлку', t_sled: 'Санки', t_cornice: 'Снег с карниза',
@@ -83,6 +97,18 @@ const T = {
     meta: 'Free · open source, MIT · macOS 13 or later',
     mitten: 'Mitten',
     w_hero: 'Sugrob', w_try: 'Things to try', w_engine: 'Under the hood', w_people: 'Little people',
+    w_donate: 'Support', support: 'Support the project',
+    dn_title: 'Sugrob is free',
+    dn_intro: 'No ads, no subscriptions. If it made you smile and you can spare it, send a dollar or two. Entirely optional, always appreciated.',
+    dn_low: 'lowest fee',
+    dn_warn: 'Pick the same network in your wallet as the one selected here: a transfer on another network will not arrive.',
+    dn_copy: 'Click to copy the address', dn_copied: 'Address copied',
+    dn_select: 'Address selected — copy it (⌘C or Ctrl+C)',
+    dn_bnb: 'BNB, USDT and other tokens on this network all work.',
+    dn_trx: 'TRX and USDT on Tron both work.',
+    dn_sol: 'SOL and Solana tokens both work.',
+    dn_eth: 'The same address works on Base, Arbitrum, Optimism, Polygon and Linea.',
+    dn_btc: 'A regular Bitcoin address (Native SegWit).',
     pp_intro: 'Normally they decide for themselves what to do. Here you can nudge them: whoever is free will take the job.',
     t_summon: 'Call more', t_ladder: 'Build a ladder', t_tunnel: 'Dig a tunnel', t_igloo: 'Build an igloo',
     t_angel: 'Snow angel', t_tree: 'Bring a tree', t_sled: 'Sled', t_cornice: 'Snow off a ledge',
@@ -215,7 +241,8 @@ function showWin(id) {
     w.state = 'open';
     w.el.hidden = false;
     measure(w); clampWin(w); place(w);
-    requestAnimationFrame(() => w.el.classList.remove('gone'));
+    void w.el.offsetWidth;          // зафиксировать исходное состояние, чтобы появление было плавным
+    w.el.classList.remove('gone');
   }
   focusWin(id);
 }
@@ -284,6 +311,8 @@ function layout() {
   tr.el.style.width = narrow ? Math.min(400, vw - 36) + 'px' : '390px';
   en.el.style.width = narrow ? Math.min(360, vw - 36) + 'px' : '360px';
   pe.el.style.width = narrow ? Math.min(380, vw - 28) + 'px' : '350px';
+  const dn = wins.get('donate');
+  dn.el.style.width = narrow ? Math.min(390, vw - 24) + 'px' : '390px';
   for (const w of wins.values()) { w.el.hidden = false; measure(w); }
 
   const setState = (w, open) => {
@@ -313,12 +342,17 @@ function layout() {
     hero.x = Math.max(28, vw * 0.5 - hero.w - 40);
     hero.y = Math.max(MB + 46, Math.min(vh * 0.17, dockTop - hero.h - 60));
     tr.x = Math.min(vw - tr.w - 28, hero.x + hero.w + 50);
-    tr.y = Math.max(MB + 86, Math.min(hero.y + 64, dockTop - tr.h - 16));
+    tr.y = Math.max(MB + 40, Math.min(hero.y + 64, dockTop - tr.h - 16));
     pe.x = Math.max(16, hero.x - 10); pe.y = Math.max(MB + 60, dockTop - pe.h - 70);
     en.x = hero.x + 60; en.y = Math.max(MB + 60, dockTop - en.h - 20);
     setState(hero, true); setState(tr, true); setState(pe, false); setState(en, false);
     order = ['hero', 'try', 'people', 'engine'];
   }
+  // «Поддержать» само не открывается: только из Dock, меню или по ссылке в главном окне
+  dn.x = Math.max(10, (vw - dn.w) / 2);
+  dn.y = Math.max(MB + 44, Math.min(vh * 0.22, dockTop - dn.h - 24));
+  setState(dn, false);
+  order.push('donate');
   for (const w of wins.values()) { clampWin(w); place(w); }
   restack();
 }
@@ -350,6 +384,7 @@ function menuModel() {
   return [
     { title: t('name'), items: [
       act('about', () => showWin('hero')),
+      act('support', () => { arranged = true; showWin('donate'); }),
       act(paused ? 'resume' : 'pause', () => setPaused(!paused)),
       '-',
       link('download', 'https://github.com/niazlv/sugrob/releases/latest'),
@@ -450,6 +485,7 @@ function applyLang() {
   document.title = t('title');
   for (const el of $$('[data-i]')) el.textContent = t(el.dataset.i);
   $('#lang').textContent = lang === 'ru' ? 'EN' : 'RU';
+  showNet();
   buildMenus();
   for (const w of wins.values()) if (w.state === 'open') measure(w);
   winsDirty = true;
@@ -484,6 +520,73 @@ function mark(step) {
 }
 for (const b of $$('[data-act]')) b.addEventListener('click', () => doAct(b.dataset.act));
 for (const b of $$('[data-openwin]')) b.addEventListener('click', () => { arranged = true; showWin(b.dataset.openwin); });
+
+// ---------- окно «Поддержать»: сеть, QR-код и адрес, который копируется по нажатию
+
+// значки сетей лежат отдельно: net-icons.js
+let gradientNo = 0;
+const netIcon = id => NET_ICONS[id].replace(/GID/g, 'net-g' + (++gradientNo));
+
+// BNB — первой: там перевод обходится дешевле всего. Адреса те же, что в README проекта.
+const NETS = [
+  { id: 'bnb', name: 'BNB Chain (BEP-20)', short: 'BNB', color: '#F3BA2F', low: true, addr: '0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25' },
+  { id: 'trx', name: 'Tron (TRC-20)', short: 'Tron', color: '#FF4D62', addr: 'TKyahQhTeLdMraKDbedLz17jorRTfER8xX' },
+  { id: 'sol', name: 'Solana', short: 'Solana', color: '#3FE0A5', addr: '9GhoGBorb8xvkUjFgGfrcFun1m6ad9K9chDUhvagXYwX' },
+  { id: 'eth', name: 'Ethereum (ERC-20)', short: 'Ethereum', color: '#8497F5', addr: '0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25' },
+  { id: 'btc', name: 'Bitcoin', short: 'Bitcoin', color: '#F7931A', addr: 'bc1qyt9hzvtd69t5jkk7h39fqd4pz7tg9jl9pq4arf' },
+];
+let net = NETS[0];
+let copiedTimer = 0;
+
+function showNet() {
+  for (const b of $$('#nets .net')) b.classList.toggle('on', b.dataset.net === net.id);
+  wins.get('donate')?.el.style.setProperty('--net', net.color);
+  // код рисуется на месте из самого адреса; в середине — значок сети на белой плашке
+  const plate = '<rect x="-2.600" y="-2.600" width="29.200" height="29.200" rx="14.600" fill="#fff"/>';
+  $('#qr').innerHTML = qrSvg(net.addr, { logo: plate + netIcon(net.id) });
+  $('#qr').setAttribute('aria-label', 'QR: ' + net.name);
+  $('#net-name').textContent = net.name;
+  $('#net-badge').hidden = !net.low;
+  $('#net-note').textContent = t('dn_' + net.id);
+  // адрес делится пополам: если не влезает в строку, переносится ровно посередине, а не обрывком в три знака
+  const half = Math.ceil(net.addr.length / 2);
+  $('#addr-text').replaceChildren(net.addr.slice(0, half), document.createElement('wbr'), net.addr.slice(half));
+  $('#addr-hint').textContent = t('dn_copy');
+  $('#addr').classList.remove('copied');
+}
+for (const n of NETS) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'net';
+  b.dataset.net = n.id;
+  b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${netIcon(n.id)}</svg>`;
+  b.append(n.short);
+  b.addEventListener('click', () => { net = n; showNet(); });
+  $('#nets').appendChild(b);
+}
+$('#addr').addEventListener('click', async () => {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(net.addr);
+    ok = true;
+  } catch (e) {
+    // буфер обмена недоступен (старый браузер, запрет) — выделяем адрес, чтобы его можно было скопировать руками
+    const r = document.createRange();
+    r.selectNodeContents($('#addr-text'));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+  }
+  if (!ok) {
+    $('#addr-hint').textContent = t('dn_select');
+    return;
+  }
+  $('#addr').classList.add('copied');
+  $('#addr-hint').textContent = t('dn_copied');
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(showNet, 2200);
+});
 
 // ---------- пульт человечков: поручения, кто чем занят, ход времени
 
@@ -658,6 +761,15 @@ addEventListener('resize', () => {
 initWindows();
 applyLang();
 layout();
+
+// Прямая ссылка на поддержку (её открывает окно «О Сугробе» в приложении): …/#support
+function openFromHash() {
+  if (location.hash !== '#support') return;
+  arranged = true;
+  showWin('donate');
+}
+openFromHash();
+addEventListener('hashchange', openFromHash);
 tick();
 requestAnimationFrame(frame);
 

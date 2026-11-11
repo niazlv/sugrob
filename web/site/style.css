@@ -210,7 +210,7 @@ button { font: inherit; color: inherit; }
 .l.min { background: #febc2e; }
 .win.back .l { background: #c9cedb; }
 
-.body { padding: 18px 22px 22px; overflow: auto; max-height: calc(100vh - var(--mb) - 150px); }
+.body { padding: 18px 22px 22px; overflow: auto; max-height: calc(100vh - var(--mb) - 190px); }
 
 /* главное окно */
 .hero { padding: 22px 26px 24px; }
@@ -347,6 +347,114 @@ h1 {
 .seg button { height: 24px; padding: 0 10px; border: 0; border-radius: 7px; background: none; font-size: 13px; font-weight: 600; cursor: pointer; }
 .seg button.on { background: #fff; box-shadow: 0 1px 3px rgba(10, 20, 60, .22); }
 
+/* окно «Поддержать»: сеть, QR, адрес по нажатию */
+.link { padding: 0; border: 0; background: none; font-size: inherit; color: #2a55c8; cursor: pointer; }
+.link:hover { text-decoration: underline; }
+.donate-win { --net: #f3ba2f; }      /* цвет выбранной сети: им подсвечены плитка, свечение кода и кнопка */
+.donate { padding: 16px 20px 18px; }
+.dn-head { display: flex; gap: 13px; align-items: center; }
+.dn-head img { flex: none; border-radius: 11px; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.dn-head b { display: block; font-size: 16px; font-weight: 700; letter-spacing: -.010em; }
+.dn-head p { margin: 3px 0 0; font-size: 12.500px; line-height: 1.400; color: #a9b3dc; }
+
+.nets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 14px; }
+.net {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 8px 2px 7px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 11.500px;
+  font-weight: 600;
+  color: #b9c2e8;
+  background: rgba(255, 255, 255, .055);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.net svg { width: 28px; height: 28px; display: block; border-radius: 50%; }
+.net:hover { background: rgba(255, 255, 255, .11); color: #fff; }
+.net:active { transform: scale(.96); }
+.net.on {
+  color: #fff;
+  background: color-mix(in srgb, var(--net) 20%, rgba(255, 255, 255, .04));
+  box-shadow: 0 0 0 1.500px color-mix(in srgb, var(--net) 80%, transparent) inset;
+}
+
+.qr-card {
+  width: 184px;
+  margin: 16px auto 0;
+  padding: 10px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .5), 0 14px 44px color-mix(in srgb, var(--net) 42%, transparent);
+  transition: box-shadow .25s ease;
+}
+.qr svg { display: block; width: 100%; height: auto; }
+
+.net-line { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.net-line b { font-size: 15.500px; font-weight: 700; }
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--net);
+  background: color-mix(in srgb, var(--net) 18%, transparent);
+}
+.badge[hidden] { display: none; }
+.net-note { margin: 4px 0 0; font-size: 12.500px; line-height: 1.400; text-align: center; color: #a9b3dc; }
+
+.addr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 9px 9px 13px;
+  border: 0;
+  border-radius: 14px;
+  text-align: left;
+  color: inherit;
+  background: rgba(255, 255, 255, .07);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .12) inset;
+  cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.addr:hover { background: rgba(255, 255, 255, .11); box-shadow: 0 0 0 1.500px color-mix(in srgb, var(--net) 70%, transparent) inset; }
+.addr-main { flex: 1; min-width: 0; }
+.addr code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.350;
+  color: #eef1ff;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.addr em { display: block; margin-top: 3px; font-style: normal; font-size: 11.500px; font-weight: 600; color: #98a3d2; }
+.copy {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: #10142c;
+  background: var(--net);
+  transition: background .2s ease, transform .15s ease;
+}
+.copy svg { width: 19px; height: 19px; grid-area: 1 / 1; transition: opacity .15s ease, transform .2s ease; }
+.copy .i-ok { opacity: 0; transform: scale(.5); }
+.addr:active .copy { transform: scale(.92); }
+.addr.copied { box-shadow: 0 0 0 1.500px #35c985 inset; }
+.addr.copied em { color: #4fdc9b; }
+.addr.copied .copy { background: #35c985; }
+.addr.copied .i-copy { opacity: 0; transform: scale(.5); }
+.addr.copied .i-ok { opacity: 1; transform: none; }
+.warn { margin: 11px 0 0; font-size: 11.500px; line-height: 1.400; text-align: center; color: #8089b4; }
+
 /* тёмное окно «под капотом» */
 .win.dark {
   --ink: #e6eaff;
@@ -420,6 +528,7 @@ h1 {
 #dock .g3 { background: linear-gradient(160deg, #5b8eff, #2459f0); }
 #dock .g4 { background: linear-gradient(160deg, #50577c, #20253f); }
 #dock .g5 { background: linear-gradient(160deg, #ff9d4d, #e0562a); }
+#dock .g6 { background: linear-gradient(160deg, #ff7a9a, #d6336c); }
 #dock .sep { width: 1px; height: 38px; background: rgba(255, 255, 255, .28); }
 #dock .run::after {
   content: "";
@@ -484,10 +593,12 @@ h1 {
   .body { padding: 16px 18px 18px; }
   .tip { display: none; }
 }
-@media (max-width: 400px) {
+@media (max-width: 430px) {
   #menubar { font-size: 13px; padding-left: 2px; }
   .menu > button { padding: 0 5px; }
-  #dock { gap: 6px; padding: 7px; }
+  #dock { gap: 5px; padding: 6px; }
+  #dock > button, #dock > a, #dock img { width: 40px; height: 40px; }
+  #dock .sep { height: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
