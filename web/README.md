@@ -31,3 +31,10 @@ python3 -m http.server 8765 --directory site
 ```
 
 `SUGROB_SWIFT` and `SUGROB_WASM_SDK` override the toolchain path and the SDK name.
+
+## Third-party artwork
+
+The Bitcoin, Ethereum, Solana and BNB icons in `site/net-icons.js` are taken from “Popular
+cryptocurrency logos set” by myriammira (magnific.com), used under its free licence, which
+requires attribution; the credit is shown in the Support window. They are not covered by this
+repository's MIT licence. The logos themselves are trademarks of their respective projects.
