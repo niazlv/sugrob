@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сугроб — снег с настоящей физикой на рабочем столе Mac</title>
+<meta name="description" content="Сугроб — снег, который ложится на окна и ведёт себя как снег. Попробуйте прямо в браузере: здесь работает движок приложения, собранный в WebAssembly.">
+<meta property="og:title" content="Сугроб — снег на рабочем столе Mac">
+<meta property="og:description" content="Живая демонстрация: движок приложения работает прямо в браузере.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#060b1f">
+<link rel="icon" href="img/icon-64.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="desk">
+  <div id="wall" aria-hidden="true">
+    <svg id="stars" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="moon"></div>
+    <svg id="hills" viewBox="0 0 1600 420" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#343a85" d="M0 250 L120 180 L210 225 L330 120 L430 200 L520 150 L640 235 L760 110 L860 190 L960 140 L1080 230 L1200 130 L1300 205 L1420 150 L1520 215 L1600 170 V420 H0Z"/>
+      <path fill="#232a66" d="M0 300 L90 262 L190 300 L300 232 L400 290 L520 248 L620 306 L740 240 L850 296 L960 256 L1070 310 L1190 246 L1300 300 L1410 258 L1510 304 L1600 270 V420 H0Z"/>
+      <path fill="#141a47" d="M0 356 C140 318 260 340 400 330 C560 318 640 356 800 342 C960 328 1060 356 1220 338 C1360 322 1480 352 1600 334 V420 H0Z"/>
+      <g id="pines" fill="#0c1136"></g>
+      <path fill="#0c1136" d="M0 392 C200 374 420 388 640 380 C860 372 1080 392 1300 380 C1420 374 1520 386 1600 380 V420 H0Z"/>
+    </svg>
+  </div>
+
+  <header id="menubar">
+    <div id="menus"></div>
+    <div id="mb-right">
+      <button id="mitten" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M10 3a4 4 0 0 1 4 4v3.200l2.200-1.700a1.700 1.700 0 0 1 2.100 2.700L14 15v1.500H6V7a4 4 0 0 1 4-4zM5.500 18h9v3.200h-9z"/></svg>
+        <span data-i="mitten"></span>
+      </button>
+      <button id="lang" type="button"></button>
+      <span id="clock"></span>
+    </div>
+  </header>
+
+  <main id="wins">
+    <section class="win" data-win="hero" aria-labelledby="t-hero">
+      <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-hero" data-i="w_hero"></span></div>
+      <div class="body hero">
+        <div class="brand">
+          <img src="img/icon.png" width="76" height="76" alt="">
+          <div>
+            <h1 data-i="name"></h1>
+            <p class="tag" data-i="tagline"></p>
+          </div>
+        </div>
+        <p class="lead"><span data-i="lead"></span> <span class="mouse" data-i="lead_m"></span><span class="touch" data-i="lead_t"></span></p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/niazlv/sugrob/releases/latest" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5 19.500h14"/></svg>
+            <span data-i="download"></span>
+          </a>
+          <a class="btn" href="https://github.com/niazlv/sugrob" target="_blank" rel="noopener" data-i="source"></a>
+        </div>
+        <p class="meta" data-i="meta"></p>
+        <p class="note" id="engine-note" hidden></p>
+      </div>
+    </section>
+
+    <section class="win" data-win="try" aria-labelledby="t-try">
+      <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-try" data-i="w_try"></span></div>
+      <div class="body">
+        <ol class="todo" id="todo">
+          <li data-step="sweep"><i></i><div><b data-i="s_sweep"></b><span data-i="s_sweep_d"></span></div></li>
+          <li data-step="drag"><i></i><div><b data-i="s_drag"></b><span data-i="s_drag_d"></span></div></li>
+          <li data-step="close"><i></i><div><b data-i="s_close"></b><span data-i="s_close_d"></span></div></li>
+          <li data-step="ball"><i></i><div><b data-i="s_ball"></b><span class="mouse" data-i="s_ball_d"></span><span class="touch" data-i="s_ball_t"></span></div></li>
+          <li data-step="snowman"><i></i><div><b data-i="s_snowman"></b><span data-i="s_snowman_d"></span></div></li>
+          <li data-step="people"><i></i><div><b data-i="s_people"></b><span data-i="s_people_d"></span><button class="chip" type="button" data-openwin="people" data-i="a_people"></button></div></li>
+          <li data-step="storm"><i></i><div><b data-i="s_storm"></b><span data-i="s_storm_d"></span><button class="chip" type="button" data-act="storm" data-i="a_storm"></button></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="win" data-win="people" aria-labelledby="t-people">
+      <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-people" data-i="w_people"></span></div>
+      <div class="body">
+        <p class="hint" data-i="pp_intro"></p>
+        <div class="tasks" id="tasks">
+          <button type="button" class="task" data-task="summon"><b data-i="t_summon"></b></button>
+          <button type="button" class="task" data-task="ladder"><b data-i="t_ladder"></b><em id="j-ladder"></em></button>
+          <button type="button" class="task" data-task="tunnel"><b data-i="t_tunnel"></b><em id="j-tunnel"></em></button>
+          <button type="button" class="task" data-task="igloo"><b data-i="t_igloo"></b><em id="j-igloo"></em></button>
+          <button type="button" class="task" data-task="angel"><b data-i="t_angel"></b><em id="j-angel"></em></button>
+          <button type="button" class="task" data-task="tree"><b data-i="t_tree"></b><em id="j-tree"></em></button>
+          <button type="button" class="task" data-task="sled"><b data-i="t_sled"></b><em id="j-sled"></em></button>
+          <button type="button" class="task" data-task="cornice"><b data-i="t_cornice"></b></button>
+        </div>
+        <p class="roster" id="roster"></p>
+        <div class="row">
+          <span class="lbl" data-i="time"></span>
+          <div class="seg" id="speed">
+            <button type="button" data-speed="1" class="on">×1</button>
+            <button type="button" data-speed="4">×4</button>
+            <button type="button" data-speed="16">×16</button>
+          </div>
+          <button type="button" class="chip" id="age" data-i="age"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="win dark" data-win="engine" aria-labelledby="t-engine">
+      <div class="bar"><span class="lights"><button class="l close" type="button"></button><button class="l min" type="button"></button><i class="l off"></i></span><span class="title" id="t-engine" data-i="w_engine"></span></div>
+      <div class="body mono">
+        <p class="dim" data-i="e_intro"></p>
+        <dl id="stats">
+          <dt data-i="e_engine"></dt><dd>Swift → WebAssembly</dd>
+          <dt data-i="e_size"></dt><dd id="st-size">—</dd>
+          <dt data-i="e_grid"></dt><dd id="st-grid">—</dd>
+          <dt data-i="e_step"></dt><dd id="st-step">—</dd>
+          <dt data-i="e_fps"></dt><dd id="st-fps">—</dd>
+          <dt data-i="e_voxels"></dt><dd id="st-vox">—</dd>
+          <dt data-i="e_flakes"></dt><dd id="st-fl">—</dd>
+          <dt data-i="e_people"></dt><dd id="st-pe">—</dd>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <nav id="dock">
+    <button type="button" data-open="hero" class="d-app"><img src="img/icon-64.png" width="46" height="46" alt=""><span class="tip" data-i="w_hero"></span></button>
+    <button type="button" data-open="try" class="d-glyph g1"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="m5 12.500 4.500 4.500L19 7.500"/></svg><span class="tip" data-i="w_try"></span></button>
+    <button type="button" data-open="people" class="d-glyph g5"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.200a3.300 3.300 0 1 1 0 6.600 3.300 3.300 0 0 1 0-6.600zM7.500 12h9a2 2 0 0 1 2 2v3.500h-2.300V21h-2.700v-4h-3v4H7.800v-3.500H5.500V14a2 2 0 0 1 2-2z"/></svg><span class="tip" data-i="w_people"></span></button>
+    <button type="button" data-open="engine" class="d-glyph g2"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.100" stroke-linecap="round" stroke-linejoin="round" d="m8 8-4 4 4 4m8-8 4 4-4 4m-2.500-11-3 14"/></svg><span class="tip" data-i="w_engine"></span></button>
+    <span class="sep"></span>
+    <a href="https://github.com/niazlv/sugrob/releases/latest" target="_blank" rel="noopener" class="d-glyph g3"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5 19.500h14"/></svg><span class="tip" data-i="download"></span></a>
+    <a href="https://github.com/niazlv/sugrob" target="_blank" rel="noopener" class="d-glyph g4"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.500a9.700 9.700 0 0 0-3.070 18.900c.490.090.670-.210.670-.470v-1.700c-2.700.590-3.270-1.150-3.270-1.150-.440-1.120-1.080-1.420-1.080-1.420-.880-.600.070-.590.070-.590.980.070 1.490 1 1.490 1 .870 1.480 2.270 1.050 2.830.800.090-.630.340-1.050.610-1.290-2.160-.250-4.420-1.080-4.420-4.790 0-1.060.380-1.920 1-2.600-.100-.250-.430-1.230.090-2.570 0 0 .810-.260 2.670.990a9.200 9.200 0 0 1 4.860 0c1.850-1.250 2.670-.990 2.670-.990.530 1.340.200 2.320.100 2.570.620.680 1 1.540 1 2.600 0 3.720-2.270 4.540-4.430 4.780.350.300.660.890.660 1.800v2.660c0 .260.170.560.670.470A9.700 9.700 0 0 0 12 2.500Z"/></svg><span class="tip">GitHub</span></a>
+  </nav>
+
+  <div id="toast" role="status" hidden></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

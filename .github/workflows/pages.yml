@@ -1,0 +1,59 @@
+name: pages
+
+# Builds the browser demo (web/): the app's simulation core compiled to WebAssembly,
+# and publishes web/site to GitHub Pages.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'Sources/Sugrob/Sim.swift'
+      - 'Sources/Sugrob/People.swift'
+      - 'Sources/Sugrob/PeopleHome.swift'
+      - 'Sources/Sugrob/PeopleRescue.swift'
+      - 'Sources/Sugrob/PeopleFun.swift'
+      - 'Sources/Sugrob/Wind.swift'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Xcode's Swift cannot target WebAssembly; the swift.org toolchain can.
+    container: swift:6.4.2
+    steps:
+      - uses: actions/checkout@v4
+
+      # The SDK version must match the toolchain exactly.
+      - name: Swift SDK for WebAssembly
+        run: |
+          swift --version
+          swift sdk install https://download.swift.org/swift-6.4.2-release/wasm-sdk/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE_wasm.artifactbundle.tar.gz \
+            --checksum 83baca83553f8c443cda7b84800912e6e709c3acd2e7ebf277794ca5836c0da5
+
+      - name: Build sugrob.wasm
+        run: ./web/build.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

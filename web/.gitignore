@@ -1,0 +1,4 @@
+# снимок ядра и сборка — получаются из build.sh
+Sources/
+.build/
+site/sugrob.wasm
