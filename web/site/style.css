@@ -476,6 +476,8 @@ h1 {
 #stats { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; }
 #stats dt { color: #8f9ac8; }
 #stats dd { margin: 0; text-align: right; color: #dfe6ff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mono .dim.app-cost { margin: 14px 0 0; }
+.app-cost a { color: #b9c6ff; }
 
 /* ---------- снег */
 

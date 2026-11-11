@@ -114,6 +114,42 @@ off in the menu.
 
 </details>
 
+## Resource use
+
+Sugrob is light on the processor and memory. What it does cost is a little GPU time: the
+transparent layer over your desktop is redrawn 60 times a second, and the Mac's window compositor
+has to blend it each time. Measured on version 1.4, MacBook Pro with an M1 Max, a 3456×2234
+display and macOS 26, plugged in, with the app in its usual state:
+
+| | |
+| --- | --- |
+| CPU | about 2 % of the chip, almost all of it on efficiency cores: 0.1 W |
+| Memory | 100–110 MB |
+| GPU | 2–3 % of the GPU's time for the snow itself |
+| System processes | about +1.5 % of the chip in `WindowServer` and `launchservicesd` |
+| **Whole Mac, extra power** | **about 1 W** (0.9–1.4 W), mostly GPU and compositor |
+
+Activity Monitor counts one core as 100 %, so it shows Sugrob at about 20 %. The M1 Max has ten
+cores, which makes that 2 % of the chip.
+
+That is not nothing: on a laptop battery it is roughly 1–2 % of the charge per hour, or 5–15 %
+off the runtime, depending on what else the Mac is doing. It is small next to what warms a Mac
+or spins up a fan, which is tens of watts.
+
+<details>
+<summary><b>How this was measured</b></summary>
+
+- CPU and memory: `top`, `footprint` and `proc_pid_rusage` (the per-process energy counter).
+- GPU time: the per-process counters of the `IOAccelerator` service.
+- Energy: the chip's own CPU, GPU and DRAM energy counters (IOReport, no root needed), with the
+  app alternately running and frozen with `SIGSTOP` in 15-second windows, six pairs. The GPU
+  difference was steady (+0.8 W median). CPU readings for the whole chip were swamped by other
+  apps, so the CPU and system-process shares are estimated from the load they add.
+- The whole-Mac figure is an order of magnitude, not a precise number. Not measured: blizzards,
+  a crowd of little people, several displays, an Intel Mac.
+
+</details>
+
 ## Build from source
 
 You need Xcode or its command-line tools (Swift 5.9 or later). There are no dependencies.
