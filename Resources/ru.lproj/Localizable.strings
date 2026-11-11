@@ -1,0 +1,142 @@
+/* Sugrob UI strings, ru. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Сугроб";
+"alert.metal.title" = "Сугроб не может запуститься";
+"alert.metal.text" = "На этом Mac недоступен Metal.";
+"alert.login.title" = "Не получилось изменить автозапуск";
+
+/* Menu: top level */
+"menu.pause" = "Поставить снег на паузу";
+"menu.resume" = "Вернуть зиму";
+"menu.fill" = "Насыпать снег сейчас";
+"menu.clear" = "Убрать весь снег";
+
+/* Menu: weather */
+"menu.weather" = "Погода";
+"menu.weather.light" = "Лёгкий снег";
+"menu.weather.snowfall" = "Снегопад";
+"menu.weather.blizzard" = "Метель";
+"menu.wind" = "Ветер";
+"menu.wind.strongLeft" = "⇐ Сильный влево";
+"menu.wind.left" = "← Влево";
+"menu.wind.calm" = "Штиль";
+"menu.wind.right" = "→ Вправо";
+"menu.wind.strongRight" = "⇒ Сильный вправо";
+"menu.storms" = "Иногда налетает буран";
+"menu.stormNow" = "Устроить буран сейчас";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "Сугробы";
+"menu.drifts.low" = "Низкие";
+"menu.drifts.medium" = "Средние";
+"menu.drifts.high" = "Высокие";
+"menu.drifts.autoFill" = "Растут сами";
+"menu.drifts.aging" = "Слёживаются и подмерзают";
+"menu.drifts.sweep" = "Курсор смахивает снег";
+"menu.where" = "Где лежит снег";
+"menu.where.windows" = "На окнах";
+"menu.where.menuWindows" = "На окнах вплотную к строке меню";
+"menu.where.narrow" = "На узких окнах";
+"menu.where.widgets" = "На виджетах рабочего стола";
+"menu.where.floor" = "Внизу экрана";
+"menu.where.dock" = "На Dock";
+"menu.where.openOnly" = "Не ложиться поверх других окон";
+
+/* Menu: little people */
+"menu.people" = "Человечки";
+"menu.people.never" = "Не приходят";
+"menu.people.rarely" = "Заходят редко";
+"menu.people.sometimes" = "Заходят иногда";
+"menu.people.often" = "Заходят часто";
+"menu.people.ladders" = "Строят лестницы к окнам";
+"menu.people.stay" = "Остаются жить и строят иглу";
+"menu.people.events" = "Санки, ёлка и другие происшествия";
+"menu.people.size" = "Размер";
+"menu.people.size.small" = "Маленькие";
+"menu.people.size.large" = "Побольше";
+"menu.people.summon" = "Позвать сейчас";
+"menu.people.clear" = "Прогнать всех и убрать постройки";
+
+/* Menu: appearance */
+"menu.look" = "Внешний вид";
+"menu.look.voxel" = "Размер вокселя";
+"menu.look.voxel.small" = "Мелкий";
+"menu.look.voxel.medium" = "Средний";
+"menu.look.voxel.large" = "Крупный";
+"menu.look.voxel.huge" = "Очень крупный";
+"menu.look.radius" = "Скругление углов окон";
+"menu.look.radius.none" = "Нет (прямой край)";
+"menu.look.radius.small" = "Малое";
+"menu.look.radius.medium" = "Среднее";
+"menu.look.radius.large" = "Большое";
+
+/* Menu: how to play */
+"menu.help" = "Как играть";
+"menu.help.sweep" = "Ведите курсором по снегу — он смахивается";
+"menu.help.snowball" = "⌃⌥ + зажать мышь — слепить и катать снежок";
+"menu.help.throw" = "Отпустить на ходу — бросить";
+"menu.help.snowman" = "Опустить шар на шар — снеговик";
+"menu.help.crust" = "Наст (голубой) колется резким взмахом или снежком";
+"menu.help.settle" = "Старый снег оседает, под настом растут пустоты";
+"menu.help.heavy" = "Тяжёлый шар продавливает тонкий наст над пустотой";
+"menu.help.people" = "Человечка можно сбить быстрым курсором или шаром — он ответит снежком";
+
+/* Menu: bottom */
+"menu.about" = "О Сугробе";
+"menu.login" = "Запускать при входе";
+"menu.quit" = "Выйти из Сугроба";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "Снег с настоящей физикой\nна рабочем столе Mac.";
+"about.free" = "Бесплатно, без рекламы и подписок.\nОткрытый код, лицензия MIT.";
+"about.author" = "Разработчик: %@";
+"about.source" = "Исходный код";
+"about.site" = "Сайт и демо в браузере";
+"about.support.lead" = "Если Сугроб вас порадовал и не жалко —";
+"about.support.link" = "поддержите автора копейкой";
+
+/* Updates: menu */
+"upd.menu" = "Обновления";
+"upd.menu.ready" = "Обновления — готова %@";
+"upd.unavailable" = "Недоступны: запущено не из Sugrob.app";
+"upd.version" = "Версия %1$@ (%2$@)";
+"upd.status.never" = "Ещё не проверялось";
+"upd.status.checked" = "Проверено %@";
+"upd.status.checking" = "Проверяю…";
+"upd.status.downloading" = "Скачиваю %@…";
+"upd.status.readyAuto" = "Готова %@: поставлю, когда отойдёте от компьютера";
+"upd.status.ready" = "Готова %@";
+"upd.status.installing" = "Устанавливаю…";
+"upd.status.upToDate" = "Последняя версия, проверено %@";
+"upd.status.error" = "Ошибка: %@";
+"upd.install" = "Установить %@ и перезапустить";
+"upd.check" = "Проверить сейчас";
+"upd.auto" = "Обновлять автоматически";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "в %@";
+"upd.when.date" = "%1$@ в %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "У вас последняя версия";
+"upd.alert.upToDate.text" = "Сугроб %1$@ (%2$@).";
+"upd.alert.needsOS.title" = "Есть Сугроб %@";
+"upd.alert.needsOS.text" = "Ему нужна macOS %@ или новее.";
+"upd.failed.needsOS" = "версии %1$@ нужна macOS %2$@";
+"upd.alert.checkFailed" = "Не удалось проверить обновления";
+"upd.alert.installFailed" = "Не удалось установить Сугроб %@";
+"upd.offer.title" = "Доступен Сугроб %@";
+"upd.offer.text" = "Сейчас у вас %@. Снег после перезапуска начнётся заново.";
+"upd.offer.install" = "Установить и перезапустить";
+"upd.offer.later" = "Позже";
+
+/* Updates: errors */
+"upd.err.http" = "сервер обновлений ответил %@";
+"upd.err.manifest" = "сервер обновлений прислал непонятный ответ";
+"upd.err.signature" = "подпись обновления не сошлась — ставить не буду";
+"upd.err.corrupt" = "архив обновления повреждён";
+"upd.err.bundle" = "в архиве не та программа или не та сборка";
+"upd.err.codesign" = "подпись кода в архиве нарушена";
+"upd.err.notWritable" = "нет прав на запись в «%@» — перенесите Сугроб в Программы";
+"upd.err.tool" = "%1$@ завершился с кодом %2$@";

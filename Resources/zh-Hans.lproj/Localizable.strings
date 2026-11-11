@@ -1,0 +1,142 @@
+/* Sugrob UI strings, zh-Hans. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "无法启动 Sugrob";
+"alert.metal.text" = "此 Mac 上无法使用 Metal。";
+"alert.login.title" = "无法更改“登录时打开”";
+
+/* Menu: top level */
+"menu.pause" = "暂停下雪";
+"menu.resume" = "让冬天回来";
+"menu.fill" = "立即堆雪";
+"menu.clear" = "清除所有雪";
+
+/* Menu: weather */
+"menu.weather" = "天气";
+"menu.weather.light" = "小雪";
+"menu.weather.snowfall" = "中雪";
+"menu.weather.blizzard" = "暴风雪";
+"menu.wind" = "风";
+"menu.wind.strongLeft" = "⇐ 强风向左";
+"menu.wind.left" = "← 向左";
+"menu.wind.calm" = "无风";
+"menu.wind.right" = "→ 向右";
+"menu.wind.strongRight" = "⇒ 强风向右";
+"menu.storms" = "偶尔刮起风雪";
+"menu.stormNow" = "立即刮起风雪";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "雪堆";
+"menu.drifts.low" = "低";
+"menu.drifts.medium" = "中";
+"menu.drifts.high" = "高";
+"menu.drifts.autoFill" = "自动增长";
+"menu.drifts.aging" = "自然压实并结冰";
+"menu.drifts.sweep" = "光标可拂去雪";
+"menu.where" = "积雪位置";
+"menu.where.windows" = "窗口上";
+"menu.where.menuWindows" = "紧贴菜单栏的窗口上";
+"menu.where.narrow" = "窄窗口上";
+"menu.where.widgets" = "桌面小组件上";
+"menu.where.floor" = "屏幕底部";
+"menu.where.dock" = "程序坞上";
+"menu.where.openOnly" = "不落在其他窗口上方";
+
+/* Menu: little people */
+"menu.people" = "小人";
+"menu.people.never" = "不来访";
+"menu.people.rarely" = "很少来访";
+"menu.people.sometimes" = "偶尔来访";
+"menu.people.often" = "经常来访";
+"menu.people.ladders" = "搭梯子爬上窗口";
+"menu.people.stay" = "留下定居并建造冰屋";
+"menu.people.events" = "雪橇、圣诞树和其他意外";
+"menu.people.size" = "大小";
+"menu.people.size.small" = "小";
+"menu.people.size.large" = "稍大";
+"menu.people.summon" = "立即召唤";
+"menu.people.clear" = "赶走所有人并拆除建筑";
+
+/* Menu: appearance */
+"menu.look" = "外观";
+"menu.look.voxel" = "体素大小";
+"menu.look.voxel.small" = "小";
+"menu.look.voxel.medium" = "中";
+"menu.look.voxel.large" = "大";
+"menu.look.voxel.huge" = "特大";
+"menu.look.radius" = "窗口圆角";
+"menu.look.radius.none" = "无（直角边缘）";
+"menu.look.radius.small" = "小";
+"menu.look.radius.medium" = "中";
+"menu.look.radius.large" = "大";
+
+/* Menu: how to play */
+"menu.help" = "玩法";
+"menu.help.sweep" = "用光标划过雪即可拂去";
+"menu.help.snowball" = "⌃⌥ + 按住鼠标按键：捏雪球并滚动";
+"menu.help.throw" = "移动中松开即可投掷";
+"menu.help.snowman" = "把球叠在球上：堆雪人";
+"menu.help.crust" = "冰壳（蓝色）会被快速一挥或雪球打碎";
+"menu.help.settle" = "旧雪会下沉，冰壳下会出现空洞";
+"menu.help.heavy" = "重球会压穿空洞上方的薄冰壳";
+"menu.help.people" = "用快速移动的光标或雪球可以撞倒小人，他会用雪球还击";
+
+/* Menu: bottom */
+"menu.about" = "关于 Sugrob";
+"menu.login" = "登录时打开";
+"menu.quit" = "退出 Sugrob";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "拥有真实物理效果的雪\n落在 Mac 桌面上。";
+"about.free" = "免费，无广告，无订阅。\n开源，采用 MIT 许可证。";
+"about.author" = "开发者：%@";
+"about.source" = "源代码";
+"about.site" = "网站与浏览器演示";
+"about.support.lead" = "如果 Sugrob 让你开心，又不介意的话——";
+"about.support.link" = "给作者一枚小小的硬币";
+
+/* Updates: menu */
+"upd.menu" = "更新";
+"upd.menu.ready" = "更新：%@ 已就绪";
+"upd.unavailable" = "不可用：并非从 Sugrob.app 运行";
+"upd.version" = "版本 %1$@（%2$@）";
+"upd.status.never" = "尚未检查";
+"upd.status.checked" = "检查于%@";
+"upd.status.checking" = "正在检查…";
+"upd.status.downloading" = "正在下载 %@…";
+"upd.status.readyAuto" = "版本 %@ 已就绪：你离开 Mac 时将自动安装";
+"upd.status.ready" = "版本 %@ 已就绪";
+"upd.status.installing" = "正在安装…";
+"upd.status.upToDate" = "已是最新版本，检查于%@";
+"upd.status.error" = "错误：%@";
+"upd.install" = "安装 %@ 并重新启动";
+"upd.check" = "立即检查";
+"upd.auto" = "自动更新";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "今天 %@";
+"upd.when.date" = "%1$@ %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "已是最新版本";
+"upd.alert.upToDate.text" = "Sugrob %1$@（%2$@）。";
+"upd.alert.needsOS.title" = "Sugrob %@ 已发布";
+"upd.alert.needsOS.text" = "需要 macOS %@ 或更高版本。";
+"upd.failed.needsOS" = "版本 %1$@ 需要 macOS %2$@";
+"upd.alert.checkFailed" = "无法检查更新";
+"upd.alert.installFailed" = "无法安装 Sugrob %@";
+"upd.offer.title" = "Sugrob %@ 已发布";
+"upd.offer.text" = "当前版本为 %@。重新启动后，雪会重新开始下。";
+"upd.offer.install" = "安装并重新启动";
+"upd.offer.later" = "稍后";
+
+/* Updates: errors */
+"upd.err.http" = "更新服务器返回了状态 %@";
+"upd.err.manifest" = "更新服务器返回了无法识别的响应";
+"upd.err.signature" = "更新签名不匹配，不会安装";
+"upd.err.corrupt" = "更新压缩包已损坏";
+"upd.err.bundle" = "压缩包中不是正确的 App 或构建版本";
+"upd.err.codesign" = "压缩包中的代码签名已损坏";
+"upd.err.notWritable" = "没有“%@”的写入权限，请将 Sugrob 移到“应用程序”文件夹";
+"upd.err.tool" = "%1$@ 以代码 %2$@ 退出";

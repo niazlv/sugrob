@@ -1,0 +1,142 @@
+/* Sugrob UI strings, ja. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "Sugrobを起動できません";
+"alert.metal.text" = "このMacではMetalを使用できません。";
+"alert.login.title" = "「ログイン時に開く」を変更できませんでした";
+
+/* Menu: top level */
+"menu.pause" = "雪を一時停止";
+"menu.resume" = "冬を取り戻す";
+"menu.fill" = "今すぐ雪を積もらせる";
+"menu.clear" = "すべての雪を取り除く";
+
+/* Menu: weather */
+"menu.weather" = "天気";
+"menu.weather.light" = "弱い雪";
+"menu.weather.snowfall" = "降雪";
+"menu.weather.blizzard" = "吹雪";
+"menu.wind" = "風";
+"menu.wind.strongLeft" = "⇐ 強く左へ";
+"menu.wind.left" = "← 左へ";
+"menu.wind.calm" = "無風";
+"menu.wind.right" = "→ 右へ";
+"menu.wind.strongRight" = "⇒ 強く右へ";
+"menu.storms" = "ときどき雪嵐が吹く";
+"menu.stormNow" = "今すぐ雪嵐を起こす";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "雪だまり";
+"menu.drifts.low" = "低い";
+"menu.drifts.medium" = "中くらい";
+"menu.drifts.high" = "高い";
+"menu.drifts.autoFill" = "自然に増える";
+"menu.drifts.aging" = "締まって凍りつく";
+"menu.drifts.sweep" = "カーソルで雪を払う";
+"menu.where" = "雪が積もる場所";
+"menu.where.windows" = "ウインドウの上";
+"menu.where.menuWindows" = "メニューバーに接するウインドウの上";
+"menu.where.narrow" = "幅の狭いウインドウの上";
+"menu.where.widgets" = "デスクトップのウィジェットの上";
+"menu.where.floor" = "画面の下端";
+"menu.where.dock" = "Dockの上";
+"menu.where.openOnly" = "ほかのウインドウの上には積もらない";
+
+/* Menu: little people */
+"menu.people" = "小人たち";
+"menu.people.never" = "来ない";
+"menu.people.rarely" = "ほとんど来ない";
+"menu.people.sometimes" = "ときどき来る";
+"menu.people.often" = "よく来る";
+"menu.people.ladders" = "ウインドウまではしごをかける";
+"menu.people.stay" = "住みついてイグルーを建てる";
+"menu.people.events" = "そり、クリスマスツリー、その他のハプニング";
+"menu.people.size" = "サイズ";
+"menu.people.size.small" = "小さめ";
+"menu.people.size.large" = "やや大きめ";
+"menu.people.summon" = "今すぐ呼ぶ";
+"menu.people.clear" = "みんなを追い払って建物を片付ける";
+
+/* Menu: appearance */
+"menu.look" = "外観";
+"menu.look.voxel" = "ボクセルのサイズ";
+"menu.look.voxel.small" = "小";
+"menu.look.voxel.medium" = "中";
+"menu.look.voxel.large" = "大";
+"menu.look.voxel.huge" = "特大";
+"menu.look.radius" = "ウインドウの角の丸み";
+"menu.look.radius.none" = "なし（直線の縁）";
+"menu.look.radius.small" = "小";
+"menu.look.radius.medium" = "中";
+"menu.look.radius.large" = "大";
+
+/* Menu: how to play */
+"menu.help" = "遊び方";
+"menu.help.sweep" = "カーソルを雪の上で動かすと雪が払われます";
+"menu.help.snowball" = "⌃⌥ を押しながらマウスボタンを押し続ける：雪玉を作って転がす";
+"menu.help.throw" = "動かしながら離すと投げられます";
+"menu.help.snowman" = "雪玉の上に雪玉を乗せる：雪だるま";
+"menu.help.crust" = "氷の殻（青）は、鋭く振り払うか雪玉で割れます";
+"menu.help.settle" = "古い雪は沈み、殻の下に空洞ができます";
+"menu.help.heavy" = "重い雪玉は、空洞の上の薄い殻を突き破ります";
+"menu.help.people" = "小人は素早いカーソルや雪玉で倒せます。倒すと雪玉で言い返してきます";
+
+/* Menu: bottom */
+"menu.about" = "Sugrobについて";
+"menu.login" = "ログイン時に開く";
+"menu.quit" = "Sugrobを終了";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "本物の物理で降り積もる雪が\nMacのデスクトップに。";
+"about.free" = "無料、広告なし、サブスクリプションなし。\nオープンソース、MITライセンス。";
+"about.author" = "開発者: %@";
+"about.source" = "ソースコード";
+"about.site" = "Webサイトとブラウザでのデモ";
+"about.support.lead" = "Sugrobを気に入っていただけて、余裕があれば——";
+"about.support.link" = "作者をほんの少し応援する";
+
+/* Updates: menu */
+"upd.menu" = "アップデート";
+"upd.menu.ready" = "アップデート：%@ の準備完了";
+"upd.unavailable" = "利用できません：Sugrob.appから起動されていません";
+"upd.version" = "バージョン %1$@（%2$@）";
+"upd.status.never" = "まだ確認していません";
+"upd.status.checked" = "確認：%@";
+"upd.status.checking" = "確認中…";
+"upd.status.downloading" = "%@をダウンロード中…";
+"upd.status.readyAuto" = "バージョン%@の準備ができました。Macから離れると自動でインストールします";
+"upd.status.ready" = "バージョン%@の準備ができました";
+"upd.status.installing" = "インストール中…";
+"upd.status.upToDate" = "最新です（確認：%@）";
+"upd.status.error" = "エラー：%@";
+"upd.install" = "%@をインストールして再起動";
+"upd.check" = "今すぐ確認";
+"upd.auto" = "自動でアップデート";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "今日 %@";
+"upd.when.date" = "%1$@ %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "最新バージョンです";
+"upd.alert.upToDate.text" = "Sugrob %1$@（%2$@）";
+"upd.alert.needsOS.title" = "Sugrob %@が利用可能です";
+"upd.alert.needsOS.text" = "macOS %@以降が必要です。";
+"upd.failed.needsOS" = "バージョン%1$@にはmacOS %2$@が必要です";
+"upd.alert.checkFailed" = "アップデートを確認できませんでした";
+"upd.alert.installFailed" = "Sugrob %@をインストールできませんでした";
+"upd.offer.title" = "Sugrob %@が利用可能です";
+"upd.offer.text" = "現在のバージョンは%@です。再起動すると、雪は最初から降り直します。";
+"upd.offer.install" = "インストールして再起動";
+"upd.offer.later" = "あとで";
+
+/* Updates: errors */
+"upd.err.http" = "アップデートサーバーがステータス%@を返しました";
+"upd.err.manifest" = "アップデートサーバーから理解できない応答が返されました";
+"upd.err.signature" = "アップデートの署名が一致しないため、インストールしません";
+"upd.err.corrupt" = "アップデートのアーカイブが壊れています";
+"upd.err.bundle" = "アーカイブに別のAppまたは別のビルドが入っています";
+"upd.err.codesign" = "アーカイブ内のコード署名が壊れています";
+"upd.err.notWritable" = "「%@」への書き込み権限がありません。Sugrobを「アプリケーション」フォルダに移動してください";
+"upd.err.tool" = "%1$@がコード%2$@で終了しました";

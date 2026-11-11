@@ -1,0 +1,142 @@
+/* Sugrob UI strings, fr. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "Impossible de lancer Sugrob";
+"alert.metal.text" = "Metal n’est pas disponible sur ce Mac.";
+"alert.login.title" = "Impossible de modifier « Ouvrir à la connexion »";
+
+/* Menu: top level */
+"menu.pause" = "Mettre la neige en pause";
+"menu.resume" = "Ramener l’hiver";
+"menu.fill" = "Ajouter de la neige maintenant";
+"menu.clear" = "Enlever toute la neige";
+
+/* Menu: weather */
+"menu.weather" = "Météo";
+"menu.weather.light" = "Neige légère";
+"menu.weather.snowfall" = "Chute de neige";
+"menu.weather.blizzard" = "Tempête de neige";
+"menu.wind" = "Vent";
+"menu.wind.strongLeft" = "⇐ Fort vers la gauche";
+"menu.wind.left" = "← Vers la gauche";
+"menu.wind.calm" = "Calme";
+"menu.wind.right" = "→ Vers la droite";
+"menu.wind.strongRight" = "⇒ Fort vers la droite";
+"menu.storms" = "Rafales de neige occasionnelles";
+"menu.stormNow" = "Déclencher une rafale de neige maintenant";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "Congères";
+"menu.drifts.low" = "Basses";
+"menu.drifts.medium" = "Moyennes";
+"menu.drifts.high" = "Hautes";
+"menu.drifts.autoFill" = "Grandissent toutes seules";
+"menu.drifts.aging" = "Se tassent et gèlent";
+"menu.drifts.sweep" = "Le curseur balaie la neige";
+"menu.where" = "Où la neige se dépose";
+"menu.where.windows" = "Sur les fenêtres";
+"menu.where.menuWindows" = "Sur les fenêtres collées à la barre des menus";
+"menu.where.narrow" = "Sur les fenêtres étroites";
+"menu.where.widgets" = "Sur les widgets du bureau";
+"menu.where.floor" = "En bas de l’écran";
+"menu.where.dock" = "Sur le Dock";
+"menu.where.openOnly" = "Ne pas se poser sur les autres fenêtres";
+
+/* Menu: little people */
+"menu.people" = "Petits bonshommes";
+"menu.people.never" = "Ne viennent pas";
+"menu.people.rarely" = "Viennent rarement";
+"menu.people.sometimes" = "Viennent parfois";
+"menu.people.often" = "Viennent souvent";
+"menu.people.ladders" = "Construisent des échelles jusqu’aux fenêtres";
+"menu.people.stay" = "Restent pour de bon et construisent un igloo";
+"menu.people.events" = "Luge, sapin de Noël et autres incidents";
+"menu.people.size" = "Taille";
+"menu.people.size.small" = "Petits";
+"menu.people.size.large" = "Un peu plus grands";
+"menu.people.summon" = "Les appeler maintenant";
+"menu.people.clear" = "Chasser tout le monde et retirer les constructions";
+
+/* Menu: appearance */
+"menu.look" = "Apparence";
+"menu.look.voxel" = "Taille des voxels";
+"menu.look.voxel.small" = "Petit";
+"menu.look.voxel.medium" = "Moyen";
+"menu.look.voxel.large" = "Grand";
+"menu.look.voxel.huge" = "Très grand";
+"menu.look.radius" = "Arrondi des coins des fenêtres";
+"menu.look.radius.none" = "Aucun (bord droit)";
+"menu.look.radius.small" = "Petit";
+"menu.look.radius.medium" = "Moyen";
+"menu.look.radius.large" = "Grand";
+
+/* Menu: how to play */
+"menu.help" = "Comment jouer";
+"menu.help.sweep" = "Passer le curseur dans la neige : elle est balayée";
+"menu.help.snowball" = "⌃⌥ + maintenir le bouton de la souris : former et rouler une boule de neige";
+"menu.help.throw" = "Relâcher en mouvement : lancer";
+"menu.help.snowman" = "Poser une boule sur une autre : bonhomme de neige";
+"menu.help.crust" = "La croûte de glace (bleue) se brise d’un geste vif ou d’une boule de neige";
+"menu.help.settle" = "La vieille neige se tasse, des cavités se forment sous la croûte";
+"menu.help.heavy" = "Une boule lourde défonce la croûte mince au-dessus d’une cavité";
+"menu.help.people" = "On peut faire tomber un bonhomme avec un curseur rapide ou une boule : il répond d’une boule de neige";
+
+/* Menu: bottom */
+"menu.about" = "À propos de Sugrob";
+"menu.login" = "Ouvrir à la connexion";
+"menu.quit" = "Quitter Sugrob";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "De la neige avec une vraie physique\nsur le bureau du Mac.";
+"about.free" = "Gratuit, sans publicité ni abonnement.\nCode source ouvert, licence MIT.";
+"about.author" = "Développeur : %@";
+"about.source" = "Code source";
+"about.site" = "Site web et démo en ligne";
+"about.support.lead" = "Si Sugrob vous plaît et que vous le pouvez —";
+"about.support.link" = "soutenez l’auteur d’un centime";
+
+/* Updates: menu */
+"upd.menu" = "Mises à jour";
+"upd.menu.ready" = "Mises à jour : %@ prête";
+"upd.unavailable" = "Indisponible : non lancé depuis Sugrob.app";
+"upd.version" = "Version %1$@ (%2$@)";
+"upd.status.never" = "Pas encore vérifié";
+"upd.status.checked" = "Vérifié %@";
+"upd.status.checking" = "Vérification…";
+"upd.status.downloading" = "Téléchargement de %@…";
+"upd.status.readyAuto" = "La version %@ est prête : installation dès que vous vous éloignez du Mac";
+"upd.status.ready" = "La version %@ est prête";
+"upd.status.installing" = "Installation…";
+"upd.status.upToDate" = "À jour, vérifié %@";
+"upd.status.error" = "Erreur : %@";
+"upd.install" = "Installer %@ et redémarrer";
+"upd.check" = "Vérifier maintenant";
+"upd.auto" = "Mettre à jour automatiquement";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "aujourd’hui à %@";
+"upd.when.date" = "le %1$@ à %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "Vous êtes à jour";
+"upd.alert.upToDate.text" = "Sugrob %1$@ (%2$@).";
+"upd.alert.needsOS.title" = "Sugrob %@ est disponible";
+"upd.alert.needsOS.text" = "Il nécessite macOS %@ ou ultérieur.";
+"upd.failed.needsOS" = "La version %1$@ nécessite macOS %2$@";
+"upd.alert.checkFailed" = "Impossible de rechercher les mises à jour";
+"upd.alert.installFailed" = "Impossible d’installer Sugrob %@";
+"upd.offer.title" = "Sugrob %@ est disponible";
+"upd.offer.text" = "Vous utilisez la version %@. Après le redémarrage, la neige repart de zéro.";
+"upd.offer.install" = "Installer et redémarrer";
+"upd.offer.later" = "Plus tard";
+
+/* Updates: errors */
+"upd.err.http" = "Le serveur de mises à jour a répondu avec le statut %@";
+"upd.err.manifest" = "Le serveur de mises à jour a envoyé une réponse incompréhensible";
+"upd.err.signature" = "La signature de la mise à jour ne correspond pas : je ne l’installerai pas";
+"upd.err.corrupt" = "L’archive de la mise à jour est endommagée";
+"upd.err.bundle" = "L’archive contient une autre app ou un autre build";
+"upd.err.codesign" = "La signature de code de l’archive est invalide";
+"upd.err.notWritable" = "Pas d’autorisation d’écriture dans « %@ ». Déplacez Sugrob dans Applications";
+"upd.err.tool" = "%1$@ s’est terminé avec le code %2$@";

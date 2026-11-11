@@ -1,0 +1,142 @@
+/* Sugrob UI strings, pt. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "Não foi possível abrir o Sugrob";
+"alert.metal.text" = "O Metal não está disponível neste Mac.";
+"alert.login.title" = "Não foi possível alterar “Abrir ao fazer login”";
+
+/* Menu: top level */
+"menu.pause" = "Pausar a neve";
+"menu.resume" = "Trazer o inverno de volta";
+"menu.fill" = "Pôr neve agora";
+"menu.clear" = "Remover toda a neve";
+
+/* Menu: weather */
+"menu.weather" = "Clima";
+"menu.weather.light" = "Neve leve";
+"menu.weather.snowfall" = "Nevada";
+"menu.weather.blizzard" = "Nevasca";
+"menu.wind" = "Vento";
+"menu.wind.strongLeft" = "⇐ Forte para a esquerda";
+"menu.wind.left" = "← Para a esquerda";
+"menu.wind.calm" = "Sem vento";
+"menu.wind.right" = "→ Para a direita";
+"menu.wind.strongRight" = "⇒ Forte para a direita";
+"menu.storms" = "Tempestades de neve ocasionais";
+"menu.stormNow" = "Provocar uma tempestade de neve agora";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "Montes de neve";
+"menu.drifts.low" = "Baixos";
+"menu.drifts.medium" = "Médios";
+"menu.drifts.high" = "Altos";
+"menu.drifts.autoFill" = "Crescem sozinhos";
+"menu.drifts.aging" = "Compactam e congelam";
+"menu.drifts.sweep" = "O cursor varre a neve";
+"menu.where" = "Onde a neve se acumula";
+"menu.where.windows" = "Nas janelas";
+"menu.where.menuWindows" = "Em janelas coladas na barra de menus";
+"menu.where.narrow" = "Em janelas estreitas";
+"menu.where.widgets" = "Nos widgets da mesa";
+"menu.where.floor" = "Na parte inferior da tela";
+"menu.where.dock" = "No Dock";
+"menu.where.openOnly" = "Não se acumular sobre outras janelas";
+
+/* Menu: little people */
+"menu.people" = "Bonequinhos";
+"menu.people.never" = "Não aparecem";
+"menu.people.rarely" = "Aparecem raramente";
+"menu.people.sometimes" = "Aparecem às vezes";
+"menu.people.often" = "Aparecem com frequência";
+"menu.people.ladders" = "Constroem escadas até as janelas";
+"menu.people.stay" = "Ficam para morar e constroem um iglu";
+"menu.people.events" = "Trenós, árvore de Natal e outros imprevistos";
+"menu.people.size" = "Tamanho";
+"menu.people.size.small" = "Pequenos";
+"menu.people.size.large" = "Um pouco maiores";
+"menu.people.summon" = "Chamar agora";
+"menu.people.clear" = "Mandar todos embora e remover as construções";
+
+/* Menu: appearance */
+"menu.look" = "Aparência";
+"menu.look.voxel" = "Tamanho do voxel";
+"menu.look.voxel.small" = "Pequeno";
+"menu.look.voxel.medium" = "Médio";
+"menu.look.voxel.large" = "Grande";
+"menu.look.voxel.huge" = "Muito grande";
+"menu.look.radius" = "Arredondamento dos cantos das janelas";
+"menu.look.radius.none" = "Nenhum (borda reta)";
+"menu.look.radius.small" = "Pequeno";
+"menu.look.radius.medium" = "Médio";
+"menu.look.radius.large" = "Grande";
+
+/* Menu: how to play */
+"menu.help" = "Como jogar";
+"menu.help.sweep" = "Passar o cursor pela neve: ela é varrida";
+"menu.help.snowball" = "⌃⌥ + manter o botão do mouse pressionado: fazer e rolar uma bola de neve";
+"menu.help.throw" = "Soltar em movimento: arremessar";
+"menu.help.snowman" = "Colocar uma bola sobre outra: boneco de neve";
+"menu.help.crust" = "A crosta de gelo (azul) quebra com uma varrida brusca ou uma bola de neve";
+"menu.help.settle" = "A neve velha assenta e surgem vazios sob a crosta";
+"menu.help.heavy" = "Uma bola pesada rompe a crosta fina sobre um vazio";
+"menu.help.people" = "Dá para derrubar um bonequinho com o cursor rápido ou uma bola, e ele responde com uma bola de neve";
+
+/* Menu: bottom */
+"menu.about" = "Sobre o Sugrob";
+"menu.login" = "Abrir ao fazer login";
+"menu.quit" = "Encerrar o Sugrob";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "Neve com física de verdade\nna mesa do Mac.";
+"about.free" = "Grátis, sem anúncios e sem assinaturas.\nCódigo aberto, licença MIT.";
+"about.author" = "Desenvolvedor: %@";
+"about.source" = "Código-fonte";
+"about.site" = "Site e demo no navegador";
+"about.support.lead" = "Se o Sugrob te alegrou e não pesa no bolso —";
+"about.support.link" = "apoie o autor com uns trocados";
+
+/* Updates: menu */
+"upd.menu" = "Atualizações";
+"upd.menu.ready" = "Atualizações: %@ pronta";
+"upd.unavailable" = "Indisponível: não está rodando a partir do Sugrob.app";
+"upd.version" = "Versão %1$@ (%2$@)";
+"upd.status.never" = "Ainda não verificado";
+"upd.status.checked" = "Verificado %@";
+"upd.status.checking" = "Verificando…";
+"upd.status.downloading" = "Baixando %@…";
+"upd.status.readyAuto" = "A versão %@ está pronta: será instalada quando você se afastar do Mac";
+"upd.status.ready" = "A versão %@ está pronta";
+"upd.status.installing" = "Instalando…";
+"upd.status.upToDate" = "Atualizado, verificado %@";
+"upd.status.error" = "Erro: %@";
+"upd.install" = "Instalar %@ e reiniciar";
+"upd.check" = "Verificar agora";
+"upd.auto" = "Atualizar automaticamente";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "hoje às %@";
+"upd.when.date" = "em %1$@ às %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "Você está com a versão mais recente";
+"upd.alert.upToDate.text" = "Sugrob %1$@ (%2$@).";
+"upd.alert.needsOS.title" = "O Sugrob %@ está disponível";
+"upd.alert.needsOS.text" = "Requer o macOS %@ ou posterior.";
+"upd.failed.needsOS" = "A versão %1$@ requer o macOS %2$@";
+"upd.alert.checkFailed" = "Não foi possível verificar atualizações";
+"upd.alert.installFailed" = "Não foi possível instalar o Sugrob %@";
+"upd.offer.title" = "O Sugrob %@ está disponível";
+"upd.offer.text" = "Você está usando a versão %@. Depois de reiniciar, a neve começa do zero.";
+"upd.offer.install" = "Instalar e reiniciar";
+"upd.offer.later" = "Mais tarde";
+
+/* Updates: errors */
+"upd.err.http" = "O servidor de atualizações respondeu com o status %@";
+"upd.err.manifest" = "O servidor de atualizações enviou uma resposta ininteligível";
+"upd.err.signature" = "A assinatura da atualização não confere; não vou instalá-la";
+"upd.err.corrupt" = "O arquivo da atualização está danificado";
+"upd.err.bundle" = "O arquivo contém outro app ou outra compilação";
+"upd.err.codesign" = "A assinatura de código no arquivo é inválida";
+"upd.err.notWritable" = "Sem permissão para gravar em “%@”. Mova o Sugrob para Aplicativos";
+"upd.err.tool" = "%1$@ terminou com o código %2$@";

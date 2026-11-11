@@ -1,0 +1,142 @@
+/* Sugrob UI strings, de. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "Sugrob kann nicht gestartet werden";
+"alert.metal.text" = "Metal ist auf diesem Mac nicht verfügbar.";
+"alert.login.title" = "„Beim Anmelden öffnen“ konnte nicht geändert werden";
+
+/* Menu: top level */
+"menu.pause" = "Schnee pausieren";
+"menu.resume" = "Winter zurückholen";
+"menu.fill" = "Jetzt Schnee aufschütten";
+"menu.clear" = "Allen Schnee entfernen";
+
+/* Menu: weather */
+"menu.weather" = "Wetter";
+"menu.weather.light" = "Leichter Schneefall";
+"menu.weather.snowfall" = "Schneefall";
+"menu.weather.blizzard" = "Schneesturm";
+"menu.wind" = "Wind";
+"menu.wind.strongLeft" = "⇐ Stark nach links";
+"menu.wind.left" = "← Nach links";
+"menu.wind.calm" = "Windstill";
+"menu.wind.right" = "→ Nach rechts";
+"menu.wind.strongRight" = "⇒ Stark nach rechts";
+"menu.storms" = "Gelegentlich Schneeböen";
+"menu.stormNow" = "Jetzt Schneeböe auslösen";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "Schneewehen";
+"menu.drifts.low" = "Niedrig";
+"menu.drifts.medium" = "Mittel";
+"menu.drifts.high" = "Hoch";
+"menu.drifts.autoFill" = "Wachsen von selbst";
+"menu.drifts.aging" = "Setzen sich und gefrieren";
+"menu.drifts.sweep" = "Mauszeiger wischt Schnee weg";
+"menu.where" = "Wo Schnee liegen bleibt";
+"menu.where.windows" = "Auf Fenstern";
+"menu.where.menuWindows" = "Auf Fenstern direkt unter der Menüleiste";
+"menu.where.narrow" = "Auf schmalen Fenstern";
+"menu.where.widgets" = "Auf Widgets auf dem Schreibtisch";
+"menu.where.floor" = "Am unteren Bildschirmrand";
+"menu.where.dock" = "Auf dem Dock";
+"menu.where.openOnly" = "Nicht auf anderen Fenstern liegen bleiben";
+
+/* Menu: little people */
+"menu.people" = "Männchen";
+"menu.people.never" = "Kommen nie";
+"menu.people.rarely" = "Kommen selten";
+"menu.people.sometimes" = "Kommen manchmal";
+"menu.people.often" = "Kommen oft";
+"menu.people.ladders" = "Bauen Leitern zu den Fenstern";
+"menu.people.stay" = "Bleiben für immer und bauen ein Iglu";
+"menu.people.events" = "Schlitten, Tannenbaum und andere Zwischenfälle";
+"menu.people.size" = "Größe";
+"menu.people.size.small" = "Klein";
+"menu.people.size.large" = "Etwas größer";
+"menu.people.summon" = "Jetzt herbeirufen";
+"menu.people.clear" = "Alle wegschicken und Bauwerke entfernen";
+
+/* Menu: appearance */
+"menu.look" = "Darstellung";
+"menu.look.voxel" = "Voxelgröße";
+"menu.look.voxel.small" = "Klein";
+"menu.look.voxel.medium" = "Mittel";
+"menu.look.voxel.large" = "Groß";
+"menu.look.voxel.huge" = "Sehr groß";
+"menu.look.radius" = "Eckenradius der Fenster";
+"menu.look.radius.none" = "Keiner (gerade Kante)";
+"menu.look.radius.small" = "Klein";
+"menu.look.radius.medium" = "Mittel";
+"menu.look.radius.large" = "Groß";
+
+/* Menu: how to play */
+"menu.help" = "So wird gespielt";
+"menu.help.sweep" = "Mauszeiger durch den Schnee ziehen – er wird weggewischt";
+"menu.help.snowball" = "⌃⌥ + Maustaste halten – Schneeball formen und rollen";
+"menu.help.throw" = "Im Schwung loslassen – der Ball fliegt";
+"menu.help.snowman" = "Ball auf Ball setzen – Schneemann";
+"menu.help.crust" = "Eiskruste (blau) bricht bei einem scharfen Wisch oder einem Schneeball";
+"menu.help.settle" = "Alter Schnee setzt sich, unter der Kruste entstehen Hohlräume";
+"menu.help.heavy" = "Ein schwerer Ball bricht durch dünne Kruste über einem Hohlraum";
+"menu.help.people" = "Ein Männchen lässt sich mit schnellem Mauszeiger oder Ball umwerfen – es wirft einen Schneeball zurück";
+
+/* Menu: bottom */
+"menu.about" = "Über Sugrob";
+"menu.login" = "Beim Anmelden öffnen";
+"menu.quit" = "Sugrob beenden";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "Schnee mit echter Physik\nauf dem Mac-Schreibtisch.";
+"about.free" = "Kostenlos, ohne Werbung und Abos.\nOpen Source, MIT-Lizenz.";
+"about.author" = "Entwickler: %@";
+"about.source" = "Quellcode";
+"about.site" = "Website und Demo im Browser";
+"about.support.lead" = "Gefällt dir Sugrob und hast du etwas übrig –";
+"about.support.link" = "unterstütze den Autor mit einem Groschen";
+
+/* Updates: menu */
+"upd.menu" = "Updates";
+"upd.menu.ready" = "Updates – %@ bereit";
+"upd.unavailable" = "Nicht verfügbar: nicht aus Sugrob.app gestartet";
+"upd.version" = "Version %1$@ (%2$@)";
+"upd.status.never" = "Noch nicht geprüft";
+"upd.status.checked" = "Geprüft %@";
+"upd.status.checking" = "Suche nach Updates …";
+"upd.status.downloading" = "%@ wird geladen …";
+"upd.status.readyAuto" = "Version %@ ist bereit: Die Installation startet, sobald du dich vom Mac entfernst";
+"upd.status.ready" = "Version %@ ist bereit";
+"upd.status.installing" = "Wird installiert …";
+"upd.status.upToDate" = "Auf dem neuesten Stand, geprüft %@";
+"upd.status.error" = "Fehler: %@";
+"upd.install" = "%@ installieren und neu starten";
+"upd.check" = "Jetzt prüfen";
+"upd.auto" = "Automatisch aktualisieren";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "heute um %@ Uhr";
+"upd.when.date" = "am %1$@ um %2$@ Uhr";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "Sugrob ist auf dem neuesten Stand";
+"upd.alert.upToDate.text" = "Sugrob %1$@ (%2$@).";
+"upd.alert.needsOS.title" = "Sugrob %@ ist verfügbar";
+"upd.alert.needsOS.text" = "Dafür wird macOS %@ oder neuer benötigt.";
+"upd.failed.needsOS" = "Version %1$@ benötigt macOS %2$@";
+"upd.alert.checkFailed" = "Die Suche nach Updates ist fehlgeschlagen";
+"upd.alert.installFailed" = "Sugrob %@ konnte nicht installiert werden";
+"upd.offer.title" = "Sugrob %@ ist verfügbar";
+"upd.offer.text" = "Aktuell ist Version %@ installiert. Nach dem Neustart fängt der Schnee von vorn an.";
+"upd.offer.install" = "Installieren und neu starten";
+"upd.offer.later" = "Später";
+
+/* Updates: errors */
+"upd.err.http" = "Der Update-Server hat mit Status %@ geantwortet";
+"upd.err.manifest" = "Der Update-Server hat eine unverständliche Antwort gesendet";
+"upd.err.signature" = "Die Signatur des Updates stimmt nicht – ich installiere es nicht";
+"upd.err.corrupt" = "Das Update-Archiv ist beschädigt";
+"upd.err.bundle" = "Das Archiv enthält die falsche App oder den falschen Build";
+"upd.err.codesign" = "Die Codesignatur im Archiv ist ungültig";
+"upd.err.notWritable" = "Keine Schreibrechte für „%@“. Bitte Sugrob in den Ordner „Programme“ verschieben";
+"upd.err.tool" = "%1$@ wurde mit Code %2$@ beendet";

@@ -88,14 +88,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         device = MTLCreateSystemDefaultDevice()
         guard device != nil else {
             let a = NSAlert()
-            a.messageText = "Сугроб не может запуститься"
-            a.informativeText = "На этом Mac недоступен Metal."
+            a.messageText = tr("alert.metal.title")
+            a.informativeText = tr("alert.metal.text")
             a.runModal()
             NSApp.terminate(nil)
             return
         }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let img = NSImage(systemSymbolName: "snowflake", accessibilityDescription: "Сугроб") {
+        if let img = NSImage(systemSymbolName: "snowflake", accessibilityDescription: tr("app.name")) {
             img.isTemplate = true
             statusItem.button?.image = img
         } else {
@@ -237,99 +237,99 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // сверху — то, что нажимают чаще всего
-        menu.addItem(item(paused ? "Вернуть зиму" : "Поставить снег на паузу", #selector(togglePause)))
-        menu.addItem(item("Насыпать снег сейчас", #selector(fillNow)))
-        menu.addItem(item("Убрать весь снег", #selector(shovel)))
+        menu.addItem(item(paused ? tr("menu.resume") : tr("menu.pause"), #selector(togglePause)))
+        menu.addItem(item(tr("menu.fill"), #selector(fillNow)))
+        menu.addItem(item(tr("menu.clear"), #selector(shovel)))
         menu.addItem(.separator())
 
-        menu.addItem(sub("Погода", [
-            item("Лёгкий снег", #selector(setWeather(_:)), tag: 0, on: settings.weather == 0),
-            item("Снегопад", #selector(setWeather(_:)), tag: 1, on: settings.weather == 1),
-            item("Метель", #selector(setWeather(_:)), tag: 2, on: settings.weather == 2),
+        menu.addItem(sub(tr("menu.weather"), [
+            item(tr("menu.weather.light"), #selector(setWeather(_:)), tag: 0, on: settings.weather == 0),
+            item(tr("menu.weather.snowfall"), #selector(setWeather(_:)), tag: 1, on: settings.weather == 1),
+            item(tr("menu.weather.blizzard"), #selector(setWeather(_:)), tag: 2, on: settings.weather == 2),
             .separator(),
-            sub("Ветер", [
-                item("⇐ Сильный влево", #selector(setWind(_:)), tag: -2, on: settings.wind == -2),
-                item("← Влево", #selector(setWind(_:)), tag: -1, on: settings.wind == -1),
-                item("Штиль", #selector(setWind(_:)), tag: 0, on: settings.wind == 0),
-                item("→ Вправо", #selector(setWind(_:)), tag: 1, on: settings.wind == 1),
-                item("⇒ Сильный вправо", #selector(setWind(_:)), tag: 2, on: settings.wind == 2),
+            sub(tr("menu.wind"), [
+                item(tr("menu.wind.strongLeft"), #selector(setWind(_:)), tag: -2, on: settings.wind == -2),
+                item(tr("menu.wind.left"), #selector(setWind(_:)), tag: -1, on: settings.wind == -1),
+                item(tr("menu.wind.calm"), #selector(setWind(_:)), tag: 0, on: settings.wind == 0),
+                item(tr("menu.wind.right"), #selector(setWind(_:)), tag: 1, on: settings.wind == 1),
+                item(tr("menu.wind.strongRight"), #selector(setWind(_:)), tag: 2, on: settings.wind == 2),
             ]),
             .separator(),
-            rule("Иногда налетает буран", "storms"),
-            item("Устроить буран сейчас", #selector(stormNow)),
+            rule(tr("menu.storms"), "storms"),
+            item(tr("menu.stormNow"), #selector(stormNow)),
         ]))
-        menu.addItem(sub("Сугробы", [
-            item("Низкие", #selector(setDepth(_:)), tag: 0, on: settings.depth == 0),
-            item("Средние", #selector(setDepth(_:)), tag: 1, on: settings.depth == 1),
-            item("Высокие", #selector(setDepth(_:)), tag: 2, on: settings.depth == 2),
+        menu.addItem(sub(tr("menu.drifts"), [
+            item(tr("menu.drifts.low"), #selector(setDepth(_:)), tag: 0, on: settings.depth == 0),
+            item(tr("menu.drifts.medium"), #selector(setDepth(_:)), tag: 1, on: settings.depth == 1),
+            item(tr("menu.drifts.high"), #selector(setDepth(_:)), tag: 2, on: settings.depth == 2),
             .separator(),
-            item("Растут сами", #selector(toggleAutoFill), on: settings.autoFill),
-            rule("Слёживаются и подмерзают", "aging"),
-            rule("Курсор смахивает снег", "sweep"),
+            item(tr("menu.drifts.autoFill"), #selector(toggleAutoFill), on: settings.autoFill),
+            rule(tr("menu.drifts.aging"), "aging"),
+            rule(tr("menu.drifts.sweep"), "sweep"),
             .separator(),
-            sub("Где лежит снег", [
-                rule("На окнах", "onWindows"),
-                rule("На окнах вплотную к строке меню", "onMenuWindows"),
-                rule("На узких окнах", "onNarrow"),
-                rule("На виджетах рабочего стола", "onWidgets"),
-                rule("Внизу экрана", "onFloor"),
-                rule("На Dock", "onDock"),
+            sub(tr("menu.where"), [
+                rule(tr("menu.where.windows"), "onWindows"),
+                rule(tr("menu.where.menuWindows"), "onMenuWindows"),
+                rule(tr("menu.where.narrow"), "onNarrow"),
+                rule(tr("menu.where.widgets"), "onWidgets"),
+                rule(tr("menu.where.floor"), "onFloor"),
+                rule(tr("menu.where.dock"), "onDock"),
                 .separator(),
-                rule("Не ложиться поверх других окон", "openOnly", false),
+                rule(tr("menu.where.openOnly"), "openOnly", false),
             ]),
         ]))
-        menu.addItem(sub("Человечки", [
-            item("Не приходят", #selector(setPeople(_:)), tag: 0, on: settings.people == 0),
-            item("Заходят редко", #selector(setPeople(_:)), tag: 1, on: settings.people == 1),
-            item("Заходят иногда", #selector(setPeople(_:)), tag: 2, on: settings.people == 2),
-            item("Заходят часто", #selector(setPeople(_:)), tag: 3, on: settings.people == 3),
+        menu.addItem(sub(tr("menu.people"), [
+            item(tr("menu.people.never"), #selector(setPeople(_:)), tag: 0, on: settings.people == 0),
+            item(tr("menu.people.rarely"), #selector(setPeople(_:)), tag: 1, on: settings.people == 1),
+            item(tr("menu.people.sometimes"), #selector(setPeople(_:)), tag: 2, on: settings.people == 2),
+            item(tr("menu.people.often"), #selector(setPeople(_:)), tag: 3, on: settings.people == 3),
             .separator(),
-            rule("Строят лестницы к окнам", "peopleLadders"),
-            rule("Остаются жить и строят иглу", "peopleStay"),
-            rule("Санки, ёлка и другие происшествия", "peopleEvents"),
+            rule(tr("menu.people.ladders"), "peopleLadders"),
+            rule(tr("menu.people.stay"), "peopleStay"),
+            rule(tr("menu.people.events"), "peopleEvents"),
             .separator(),
-            sub("Размер", [
-                item("Маленькие", #selector(setPeopleSize(_:)), tag: 2, on: settings.peopleSize == 2),
-                item("Побольше", #selector(setPeopleSize(_:)), tag: 3, on: settings.peopleSize == 3),
+            sub(tr("menu.people.size"), [
+                item(tr("menu.people.size.small"), #selector(setPeopleSize(_:)), tag: 2, on: settings.peopleSize == 2),
+                item(tr("menu.people.size.large"), #selector(setPeopleSize(_:)), tag: 3, on: settings.peopleSize == 3),
             ]),
             .separator(),
-            item("Позвать сейчас", #selector(summonPeople)),
-            item("Прогнать всех и убрать постройки", #selector(clearPeople)),
-        ]))
-        menu.addItem(.separator())
-
-        menu.addItem(sub("Внешний вид", [
-            sub("Размер вокселя", [
-                item("Мелкий", #selector(setVoxel(_:)), tag: 2, on: settings.voxel == 2),
-                item("Средний", #selector(setVoxel(_:)), tag: 3, on: settings.voxel == 3),
-                item("Крупный", #selector(setVoxel(_:)), tag: 4, on: settings.voxel == 4),
-                item("Очень крупный", #selector(setVoxel(_:)), tag: 6, on: settings.voxel == 6),
-            ]),
-            sub("Скругление углов окон", [
-                item("Нет (прямой край)", #selector(setRadius(_:)), tag: 0, on: settings.cornerRadius == 0),
-                item("Малое", #selector(setRadius(_:)), tag: 10, on: settings.cornerRadius == 10),
-                item("Среднее", #selector(setRadius(_:)), tag: 18, on: settings.cornerRadius == 18),
-                item("Большое", #selector(setRadius(_:)), tag: 26, on: settings.cornerRadius == 26),
-            ]),
-        ]))
-        menu.addItem(sub("Как играть", [
-            hint("Ведите курсором по снегу — он смахивается"),
-            hint("⌃⌥ + зажать мышь — слепить и катать снежок"),
-            hint("Отпустить на ходу — бросить"),
-            hint("Опустить шар на шар — снеговик"),
-            .separator(),
-            hint("Наст (голубой) колется резким взмахом или снежком"),
-            hint("Старый снег оседает, под настом растут пустоты"),
-            hint("Тяжёлый шар продавливает тонкий наст над пустотой"),
-            .separator(),
-            hint("Человечка можно сбить быстрым курсором или шаром — он ответит снежком"),
+            item(tr("menu.people.summon"), #selector(summonPeople)),
+            item(tr("menu.people.clear"), #selector(clearPeople)),
         ]))
         menu.addItem(.separator())
 
-        menu.addItem(item("О Сугробе", #selector(showAbout)))
-        menu.addItem(item("Запускать при входе", #selector(toggleLogin), on: SMAppService.mainApp.status == .enabled))
+        menu.addItem(sub(tr("menu.look"), [
+            sub(tr("menu.look.voxel"), [
+                item(tr("menu.look.voxel.small"), #selector(setVoxel(_:)), tag: 2, on: settings.voxel == 2),
+                item(tr("menu.look.voxel.medium"), #selector(setVoxel(_:)), tag: 3, on: settings.voxel == 3),
+                item(tr("menu.look.voxel.large"), #selector(setVoxel(_:)), tag: 4, on: settings.voxel == 4),
+                item(tr("menu.look.voxel.huge"), #selector(setVoxel(_:)), tag: 6, on: settings.voxel == 6),
+            ]),
+            sub(tr("menu.look.radius"), [
+                item(tr("menu.look.radius.none"), #selector(setRadius(_:)), tag: 0, on: settings.cornerRadius == 0),
+                item(tr("menu.look.radius.small"), #selector(setRadius(_:)), tag: 10, on: settings.cornerRadius == 10),
+                item(tr("menu.look.radius.medium"), #selector(setRadius(_:)), tag: 18, on: settings.cornerRadius == 18),
+                item(tr("menu.look.radius.large"), #selector(setRadius(_:)), tag: 26, on: settings.cornerRadius == 26),
+            ]),
+        ]))
+        menu.addItem(sub(tr("menu.help"), [
+            hint(tr("menu.help.sweep")),
+            hint(tr("menu.help.snowball")),
+            hint(tr("menu.help.throw")),
+            hint(tr("menu.help.snowman")),
+            .separator(),
+            hint(tr("menu.help.crust")),
+            hint(tr("menu.help.settle")),
+            hint(tr("menu.help.heavy")),
+            .separator(),
+            hint(tr("menu.help.people")),
+        ]))
+        menu.addItem(.separator())
+
+        menu.addItem(item(tr("menu.about"), #selector(showAbout)))
+        menu.addItem(item(tr("menu.login"), #selector(toggleLogin), on: SMAppService.mainApp.status == .enabled))
         menu.addItem(updater.menuItem())
-        menu.addItem(item("Выйти из Сугроба", #selector(quit), key: "q"))
+        menu.addItem(item(tr("menu.quit"), #selector(quit), key: "q"))
     }
 
     @objc private func togglePause() {
@@ -391,7 +391,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         } catch {
             let a = NSAlert()
-            a.messageText = "Не получилось изменить автозапуск"
+            a.messageText = tr("alert.login.title")
             a.informativeText = error.localizedDescription
             NSApp.activate(ignoringOtherApps: true)
             a.runModal()

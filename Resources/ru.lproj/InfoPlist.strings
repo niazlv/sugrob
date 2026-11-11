@@ -1,0 +1,4 @@
+/* Sugrob: app name for Finder, Launchpad and the About window; the copyright line is not translated. UTF-8. */
+"CFBundleDisplayName" = "Сугроб";
+"CFBundleName" = "Сугроб";
+"NSHumanReadableCopyright" = "© 2026 niazlv (Niiaz Leushkin)";

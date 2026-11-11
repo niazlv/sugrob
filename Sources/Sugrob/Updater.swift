@@ -43,14 +43,14 @@ enum UpdateError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .http(let c): return "сервер обновлений ответил \(c)"
-        case .badManifest: return "сервер обновлений прислал непонятный ответ"
-        case .badSignature: return "подпись обновления не сошлась — ставить не буду"
-        case .corrupt: return "архив обновления повреждён"
-        case .wrongBundle: return "в архиве не та программа или не та сборка"
-        case .codesign: return "подпись кода в архиве нарушена"
-        case .notWritable(let p): return "нет прав на запись в «\(p)» — перенесите Сугроб в Программы"
-        case .tool(let n, let c): return "\(n) завершился с кодом \(c)"
+        case .http(let c): return tr("upd.err.http", String(c))
+        case .badManifest: return tr("upd.err.manifest")
+        case .badSignature: return tr("upd.err.signature")
+        case .corrupt: return tr("upd.err.corrupt")
+        case .wrongBundle: return tr("upd.err.bundle")
+        case .codesign: return tr("upd.err.codesign")
+        case .notWritable(let p): return tr("upd.err.notWritable", p)
+        case .tool(let n, let c): return tr("upd.err.tool", n, String(c))
         }
     }
 }
@@ -285,12 +285,12 @@ final class Updater: NSObject {
                 nextCheck = Date() + UpdateConfig.checkEvery
                 guard engine.isNewer(m) else {
                     state = .upToDate
-                    if user { alert("У вас последняя версия", "Сугроб \(engine.currentVersion) (\(engine.currentBuild)).") }
+                    if user { alert(tr("upd.alert.upToDate.title"), tr("upd.alert.upToDate.text", engine.currentVersion, String(engine.currentBuild))) }
                     return
                 }
                 guard engine.systemFits(m) else {
-                    state = .failed("версии \(m.version) нужна macOS \(m.minimumSystemVersion)")
-                    if user { alert("Есть Сугроб \(m.version)", "Ему нужна macOS \(m.minimumSystemVersion) или новее.") }
+                    state = .failed(tr("upd.failed.needsOS", m.version, m.minimumSystemVersion))
+                    if user { alert(tr("upd.alert.needsOS.title", m.version), tr("upd.alert.needsOS.text", m.minimumSystemVersion)) }
                     return
                 }
                 state = .downloading(m.version)
@@ -300,7 +300,7 @@ final class Updater: NSObject {
             } catch {
                 nextCheck = Date() + UpdateConfig.retryAfterError
                 state = .failed(error.localizedDescription)
-                if user { alert("Не удалось проверить обновления", error.localizedDescription) }
+                if user { alert(tr("upd.alert.checkFailed"), error.localizedDescription) }
             }
         }
     }
@@ -316,16 +316,16 @@ final class Updater: NSObject {
             // Не вышло (обычно нет прав на папку) — не повторять каждые 5 секунд.
             nextCheck = Date() + UpdateConfig.checkEvery
             state = .failed(error.localizedDescription)
-            if user { alert("Не удалось установить Сугроб \(m.version)", error.localizedDescription) }
+            if user { alert(tr("upd.alert.installFailed", m.version), error.localizedDescription) }
         }
     }
 
     private func offer(_ m: UpdateManifest, _ app: URL) {
         let a = NSAlert()
-        a.messageText = "Доступен Сугроб \(m.version)"
-        a.informativeText = (m.notes.isEmpty ? "" : m.notes + "\n\n") + "Сейчас у вас \(engine?.currentVersion ?? "?"). Снег после перезапуска начнётся заново."
-        a.addButton(withTitle: "Установить и перезапустить")
-        a.addButton(withTitle: "Позже")
+        a.messageText = tr("upd.offer.title", m.version)
+        a.informativeText = (m.notes.isEmpty ? "" : m.notes + "\n\n") + tr("upd.offer.text", engine?.currentVersion ?? "?")
+        a.addButton(withTitle: tr("upd.offer.install"))
+        a.addButton(withTitle: tr("upd.offer.later"))
         NSApp.activate(ignoringOtherApps: true)
         if a.runModal() == .alertFirstButtonReturn { install(m, app, user: true) }
     }
@@ -341,7 +341,7 @@ final class Updater: NSObject {
     // MARK: - Меню
 
     func menuItem() -> NSMenuItem {
-        let root = NSMenuItem(title: "Обновления", action: nil, keyEquivalent: "")
+        let root = NSMenuItem(title: tr("upd.menu"), action: nil, keyEquivalent: "")
         let m = NSMenu()
         func info(_ s: String) {
             let i = NSMenuItem(title: s, action: nil, keyEquivalent: "")
@@ -356,45 +356,51 @@ final class Updater: NSObject {
             m.addItem(i)
         }
         guard let engine else {
-            info("Недоступны: запущено не из Sugrob.app")
+            info(tr("upd.unavailable"))
             root.submenu = m
             return root
         }
-        info("Версия \(engine.currentVersion) (\(engine.currentBuild))")
+        info(tr("upd.version", engine.currentVersion, String(engine.currentBuild)))
         info(statusText)
         var busy = false
         switch state {
         case .ready(let mf, _):
-            root.title = "Обновления — готова \(mf.version)"
-            act("Установить \(mf.version) и перезапустить", #selector(installAction))
+            root.title = tr("upd.menu.ready", mf.version)
+            act(tr("upd.install", mf.version), #selector(installAction))
         case .checking, .downloading, .installing:
             busy = true
         default: break
         }
-        act("Проверить сейчас", #selector(checkAction), enabled: !busy)
+        act(tr("upd.check"), #selector(checkAction), enabled: !busy)
         m.addItem(.separator())
-        act("Обновлять автоматически", #selector(toggleAuto), on: auto)
+        act(tr("upd.auto"), #selector(toggleAuto), on: auto)
         root.submenu = m
         return root
     }
 
     private var statusText: String {
         switch state {
-        case .idle: return lastCheck.map { "Проверено \(Self.when($0))" } ?? "Ещё не проверялось"
-        case .checking: return "Проверяю…"
-        case .downloading(let v): return "Скачиваю \(v)…"
-        case .ready(let m, _): return auto ? "Готова \(m.version): поставлю, когда отойдёте от компьютера" : "Готова \(m.version)"
-        case .installing: return "Устанавливаю…"
-        case .upToDate: return "Последняя версия, проверено \(lastCheck.map(Self.when) ?? "")"
-        case .failed(let e): return "Ошибка: " + (e.count > 70 ? String(e.prefix(70)) + "…" : e)
+        case .idle: return lastCheck.map { tr("upd.status.checked", Self.when($0)) } ?? tr("upd.status.never")
+        case .checking: return tr("upd.status.checking")
+        case .downloading(let v): return tr("upd.status.downloading", v)
+        case .ready(let m, _): return tr(auto ? "upd.status.readyAuto" : "upd.status.ready", m.version)
+        case .installing: return tr("upd.status.installing")
+        case .upToDate: return tr("upd.status.upToDate", lastCheck.map(Self.when) ?? "")
+        case .failed(let e): return tr("upd.status.error", e.count > 70 ? String(e.prefix(70)) + "…" : e)
         }
     }
 
+    /// «сегодня в 14:05» / «11 нояб. в 14:05» — на языке интерфейса; готовые слова лежат в Localizable.strings.
     private static func when(_ d: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ru_RU")
-        f.dateFormat = Calendar.current.isDateInToday(d) ? "'в' HH:mm" : "d MMM 'в' HH:mm"
-        return f.string(from: d)
+        let time = DateFormatter()
+        time.locale = L10n.locale
+        time.dateStyle = .none
+        time.timeStyle = .short
+        if Calendar.current.isDateInToday(d) { return tr("upd.when.today", time.string(from: d)) }
+        let day = DateFormatter()
+        day.locale = L10n.locale
+        day.setLocalizedDateFormatFromTemplate("dMMM")
+        return tr("upd.when.date", day.string(from: d), time.string(from: d))
     }
 
     @objc private func checkAction() { check(user: true) }
@@ -406,6 +412,7 @@ final class Updater: NSObject {
 
 /// `Sugrob --update-now [--relaunch]` — проверить и поставить обновление из командной строки.
 /// Коды выхода: 0 — обновлено, 3 — обновлений нет, 1 — ошибка.
+/// Вывод — служебный, для разработчика, как журнал: не локализуется.
 enum UpdateCLI {
     final class Box: @unchecked Sendable { var code: Int32 = 1 }
 

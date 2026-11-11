@@ -1,0 +1,142 @@
+/* Sugrob UI strings, en. UTF-8. Keys are the same in every language (check: tools/l10n_check.sh). Missing keys fall back to en. */
+
+/* General and alerts */
+"app.name" = "Sugrob";
+"alert.metal.title" = "Sugrob can’t start";
+"alert.metal.text" = "Metal isn’t available on this Mac.";
+"alert.login.title" = "Couldn’t change Open at Login";
+
+/* Menu: top level */
+"menu.pause" = "Pause Snow";
+"menu.resume" = "Bring Back Winter";
+"menu.fill" = "Add Snow Now";
+"menu.clear" = "Clear All Snow";
+
+/* Menu: weather */
+"menu.weather" = "Weather";
+"menu.weather.light" = "Light Snow";
+"menu.weather.snowfall" = "Snowfall";
+"menu.weather.blizzard" = "Blizzard";
+"menu.wind" = "Wind";
+"menu.wind.strongLeft" = "⇐ Strong Left";
+"menu.wind.left" = "← Left";
+"menu.wind.calm" = "Calm";
+"menu.wind.right" = "→ Right";
+"menu.wind.strongRight" = "⇒ Strong Right";
+"menu.storms" = "Occasional Snow Squalls";
+"menu.stormNow" = "Start a Snow Squall Now";
+
+/* Menu: snowdrifts */
+"menu.drifts" = "Snowdrifts";
+"menu.drifts.low" = "Low";
+"menu.drifts.medium" = "Medium";
+"menu.drifts.high" = "High";
+"menu.drifts.autoFill" = "Grow on Their Own";
+"menu.drifts.aging" = "Settle and Freeze Over";
+"menu.drifts.sweep" = "Cursor Brushes Snow Away";
+"menu.where" = "Where Snow Settles";
+"menu.where.windows" = "On Windows";
+"menu.where.menuWindows" = "On Windows Flush with the Menu Bar";
+"menu.where.narrow" = "On Narrow Windows";
+"menu.where.widgets" = "On Desktop Widgets";
+"menu.where.floor" = "At the Bottom of the Screen";
+"menu.where.dock" = "On the Dock";
+"menu.where.openOnly" = "Don’t Settle Over Other Windows";
+
+/* Menu: little people */
+"menu.people" = "Little People";
+"menu.people.never" = "Never Visit";
+"menu.people.rarely" = "Visit Rarely";
+"menu.people.sometimes" = "Visit Sometimes";
+"menu.people.often" = "Visit Often";
+"menu.people.ladders" = "Build Ladders to Windows";
+"menu.people.stay" = "Stay for Good and Build an Igloo";
+"menu.people.events" = "Sleds, Christmas Tree and Other Incidents";
+"menu.people.size" = "Size";
+"menu.people.size.small" = "Small";
+"menu.people.size.large" = "Larger";
+"menu.people.summon" = "Call Them Now";
+"menu.people.clear" = "Send Everyone Away and Remove Buildings";
+
+/* Menu: appearance */
+"menu.look" = "Appearance";
+"menu.look.voxel" = "Voxel Size";
+"menu.look.voxel.small" = "Small";
+"menu.look.voxel.medium" = "Medium";
+"menu.look.voxel.large" = "Large";
+"menu.look.voxel.huge" = "Extra Large";
+"menu.look.radius" = "Window Corner Radius";
+"menu.look.radius.none" = "None (Square Edge)";
+"menu.look.radius.small" = "Small";
+"menu.look.radius.medium" = "Medium";
+"menu.look.radius.large" = "Large";
+
+/* Menu: how to play */
+"menu.help" = "How to Play";
+"menu.help.sweep" = "Move the cursor through snow to brush it away";
+"menu.help.snowball" = "⌃⌥ + hold the mouse button — make and roll a snowball";
+"menu.help.throw" = "Release while moving — throw it";
+"menu.help.snowman" = "Lower a ball onto a ball — snowman";
+"menu.help.crust" = "Icy crust (blue) cracks with a sharp swipe or a snowball";
+"menu.help.settle" = "Old snow settles, hollows grow under the crust";
+"menu.help.heavy" = "A heavy ball breaks through thin crust over a hollow";
+"menu.help.people" = "Clip a little person with a fast cursor or a ball — a snowball comes back";
+
+/* Menu: bottom */
+"menu.about" = "About Sugrob";
+"menu.login" = "Open at Login";
+"menu.quit" = "Quit Sugrob";
+
+/* About window (\n inside a value is a soft line break) */
+"about.tagline" = "Snow with real physics\non your Mac desktop.";
+"about.free" = "Free, no ads, no subscriptions.\nOpen source, MIT license.";
+"about.author" = "Developer: %@";
+"about.source" = "Source Code";
+"about.site" = "Website and Browser Demo";
+"about.support.lead" = "If Sugrob made you smile and you don’t mind —";
+"about.support.link" = "toss the author a penny";
+
+/* Updates: menu */
+"upd.menu" = "Updates";
+"upd.menu.ready" = "Updates — %@ Ready";
+"upd.unavailable" = "Unavailable: not running from Sugrob.app";
+"upd.version" = "Version %1$@ (%2$@)";
+"upd.status.never" = "Not checked yet";
+"upd.status.checked" = "Checked %@";
+"upd.status.checking" = "Checking…";
+"upd.status.downloading" = "Downloading %@…";
+"upd.status.readyAuto" = "Version %@ is ready: I’ll install it when you step away from your Mac";
+"upd.status.ready" = "Version %@ is ready";
+"upd.status.installing" = "Installing…";
+"upd.status.upToDate" = "Up to date, checked %@";
+"upd.status.error" = "Error: %@";
+"upd.install" = "Install %@ and Restart";
+"upd.check" = "Check Now";
+"upd.auto" = "Update Automatically";
+
+/* Updates: when it was checked (substituted into the Checked / Up to date lines) */
+"upd.when.today" = "today at %@";
+"upd.when.date" = "%1$@ at %2$@";
+
+/* Updates: alerts */
+"upd.alert.upToDate.title" = "You’re up to date";
+"upd.alert.upToDate.text" = "Sugrob %1$@ (%2$@).";
+"upd.alert.needsOS.title" = "Sugrob %@ is available";
+"upd.alert.needsOS.text" = "It requires macOS %@ or later.";
+"upd.failed.needsOS" = "Version %1$@ requires macOS %2$@";
+"upd.alert.checkFailed" = "Couldn’t check for updates";
+"upd.alert.installFailed" = "Couldn’t install Sugrob %@";
+"upd.offer.title" = "Sugrob %@ is available";
+"upd.offer.text" = "You’re on version %@. The snow starts over after the restart.";
+"upd.offer.install" = "Install and Restart";
+"upd.offer.later" = "Later";
+
+/* Updates: errors */
+"upd.err.http" = "The update server responded with status %@";
+"upd.err.manifest" = "The update server sent a response I can’t make sense of";
+"upd.err.signature" = "The update’s signature doesn’t match, so I won’t install it";
+"upd.err.corrupt" = "The update archive is damaged";
+"upd.err.bundle" = "The archive contains the wrong app or the wrong build";
+"upd.err.codesign" = "The code signature in the archive is broken";
+"upd.err.notWritable" = "No permission to write to “%@”. Move Sugrob to Applications";
+"upd.err.tool" = "%1$@ exited with code %2$@";
