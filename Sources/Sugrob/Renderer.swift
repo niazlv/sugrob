@@ -17,6 +17,7 @@ struct BallInst {
     var flags: Float
     var seed: Float
     var pad: SIMD2<Float> = .zero
+    var ex: SIMD4<Float> = .zero        // срез: направление и глубина; возраст; запас
 }
 
 struct PartInst {
@@ -63,11 +64,23 @@ static inline float cellAt(texture2d<float, access::read> g, int2 c, int2 size) 
 
 fragment float4 grid_f(GOut in [[stage_in]], constant U& u [[buffer(0)]],
                        texture2d<float, access::read> g [[texture(0)]],
-                       texture2d<float, access::read> hd [[texture(1)]]) {
+                       texture2d<float, access::read> hd [[texture(1)]],
+                       texture2d<float, access::read> cv [[texture(2)]]) {
     int2 size = int2(u.grid);
     int2 c = int2(floor(in.p / u.cell));
     float v = cellAt(g, c, size);
     if (v == 0) {
+        if (cellAt(cv, c, size) > 0) {
+            // пустота внутри сугроба (под настом): видна дальняя стенка — голубоватый снег в тени
+            float3 col = float3(0.63, 0.72, 0.88);
+            if (cellAt(g, c + int2(0, -1), size) > 0) col *= 0.84;          // сразу под сводом темнее
+            else if (cellAt(g, c + int2(0, -2), size) > 0) col *= 0.92;
+            if (cellAt(cv, c + int2(-1, 0), size) == 0 && cellAt(g, c + int2(-1, 0), size) == 0) col *= 1.08;   // у выхода светлее
+            if (cellAt(cv, c + int2(1, 0), size) == 0 && cellAt(g, c + int2(1, 0), size) == 0) col *= 1.08;
+            col *= 0.96 + 0.05 * hash21(float2(c) * 0.53 + 1.7);
+            float a = 0.92;
+            return float4(col * a, a);
+        }
         // мягкая тень под снегом, чтобы он читался и на светлых окнах
         float a = 0;
         if (cellAt(g, c + int2(0, -1), size) > 0) a = 0.20;
@@ -85,6 +98,7 @@ fragment float4 grid_f(GOut in [[stage_in]], constant U& u [[buffer(0)]],
     else col = mix(float3(0.94, 0.965, 1.0), float3(0.77, 0.845, 0.965), float(d - 1) / 4.0);
     bool edge = cellAt(g, c + int2(-1, 0), size) == 0 || cellAt(g, c + int2(1, 0), size) == 0;
     if (edge && d > 0) col *= float3(0.93, 0.95, 0.985);
+    if (d == 0 && cellAt(cv, c + int2(0, -1), size) > 0) col *= float3(0.80, 0.85, 0.94);    // дно пустоты в тени свода
     col *= 0.95 + 0.06 * v;
     // слежалость: плотный снег чуть темнее и синее, наст — голубой лёд с бликами
     float hv = hd.read(uint2(c)).r;
@@ -107,7 +121,7 @@ fragment float4 grid_f(GOut in [[stage_in]], constant U& u [[buffer(0)]],
 
 // ---------- шары
 
-struct BallIn { float2 c; float r; float angle; float flags; float seed; float2 pad; };
+struct BallIn { float2 c; float r; float angle; float flags; float seed; float2 pad; float4 ex; };
 struct BOut {
     float4 pos [[position]];
     float2 l;
@@ -117,20 +131,32 @@ struct BOut {
     float seed [[flat]];
     float squash [[flat]];
     float cover [[flat]];
+    float cutA [[flat]];
+    float cutD [[flat]];
+    float age [[flat]];
+    float turn [[flat]];
 };
 
 vertex BOut ball_v(uint vid [[vertex_id]], uint iid [[instance_id]],
                    constant U& u [[buffer(0)]], const device BallIn* b [[buffer(1)]]) {
     float2 q = float2(vid & 1, (vid >> 1) & 1) * 2 - 1;
     BallIn bi = b[iid];
-    float ext = bi.r * (1.0 + 0.3 * bi.pad.x + 0.2 * bi.pad.y) + 6;     // осевший шар шире, шапка выше
+    float ext = bi.r * (1.0 + 0.3 * bi.pad.x) + 6;          // осевший шар шире
+    if (int(bi.flags + 0.5) & 2) ext = max(ext, bi.r * 1.95 + 4);   // у среднего шара снеговика руки-палки
     float2 p = bi.c + q * ext;
     BOut o;
     o.pos = float4(p.x / u.view.x * 2 - 1, 1 - p.y / u.view.y * 2, 0, 1);
     o.l = q * ext;
     o.r = bi.r; o.angle = bi.angle; o.flags = bi.flags; o.seed = bi.seed;
     o.squash = bi.pad.x; o.cover = bi.pad.y;
+    o.cutA = bi.ex.x; o.cutD = bi.ex.y; o.age = bi.ex.z; o.turn = bi.ex.w;
     return o;
+}
+
+static inline float segDist(float2 p, float2 a, float2 b) {
+    float2 ab = b - a;
+    float t = saturate(dot(p - a, ab) / dot(ab, ab));
+    return length(p - (a + ab * t));
 }
 
 fragment float4 ball_f(BOut in [[stage_in]], constant U& u [[buffer(0)]]) {
@@ -142,46 +168,60 @@ fragment float4 ball_f(BOut in [[stage_in]], constant U& u [[buffer(0)]]) {
         a *= 0.6;
         return float4(a, a, a, a);
     }
+    float r = in.r;
     // осевший шар: шире и ниже, низ остаётся на месте
     float2 l = in.l;
-    l.y -= in.r * 0.35 * in.squash;
+    l.y -= r * 0.35 * in.squash;
     l = float2(l.x / (1.0 + 0.3 * in.squash), l.y / (1.0 - 0.35 * in.squash));
     float2 q = (floor(l / u.cell) + 0.5) * u.cell;
     float d = length(q);
-    // шапка снега, которой шар замело: сверху, с неровным нижним краем; у головы снеговика — как шапочка
-    bool snowCap = false;
-    if (in.cover > 0.03) {
-        float wob = (hash21(float2(floor(q.x / u.cell), in.seed)) - 0.5) * u.cell * 2.0;
-        float low = (flags & 1) ? 0.5 : 0.1;                         // до какой высоты шапка спускается при полном заносе
-        float cut = -in.r * (1.0 - (1.0 - low) * in.cover) + wob;
-        float thick = in.cover * (0.16 * in.r + u.cell);
-        snowCap = q.y < cut && d <= in.r + thick;
+    float ca = cos(-in.angle), sa = sin(-in.angle);
+    float2 rq = float2(q.x * ca - q.y * sa, q.x * sa + q.y * ca);      // оси, вращающиеся вместе с шаром
+    float ch = hash21(floor(q / u.cell) + in.seed);
+
+    // Обозначения снеговика (лицо, пуговицы, ветки) принадлежат шару и поворачиваются вместе с ним:
+    // fq — координаты в осях, где они стоят прямо. Снег их не «стирает»: он настоящий, лежит
+    // в сетке и рисуется поверх стоящего шара.
+    float ct = cos(-in.turn), st = sin(-in.turn);
+    float2 fq = float2(q.x * ct - q.y * st, q.x * st + q.y * ct);
+
+    // скол: у шара, отломанного от примёрзшего основания, нет сегмента
+    float2 cdir = float2(cos(in.cutA), sin(in.cutA));
+    float toCut = r * (1.0 - in.cutD) - dot(rq, cdir);
+    bool chipped = in.cutD > 0.01 && toCut < 0.0;
+    bool body = d <= r && !chipped;
+    if (!body) {
+        // ветки туловища торчат из-за шара
+        if ((flags & 2) && r > 9.0 && d > r) {
+            for (int sg = -1; sg <= 1; sg += 2) {
+                float2 a = float2(float(sg) * 0.8 * r, -0.05 * r), b = float2(float(sg) * 1.75 * r, -0.6 * r);
+                float2 m = a + (b - a) * 0.62;
+                if (segDist(fq, a, b) < u.cell * 0.62 || segDist(fq, m, m + float2(float(sg) * 0.12 * r, -0.36 * r)) < u.cell * 0.55)
+                    return float4(0.36, 0.25, 0.16, 1.0);
+            }
+        }
+        discard_fragment();
     }
-    if (d > in.r && !snowCap) discard_fragment();
-    if (snowCap) {
-        float3 w = float3(1.0) * (0.955 + 0.045 * hash21(floor(q / u.cell) + in.seed));
-        if (d > in.r + in.cover * (0.16 * in.r + u.cell) - u.cell) w = float3(1.0);
-        return float4(w, 1.0);
-    }
-    float2 n = q / in.r;
+
+    float2 n = q / r;
     float nz = sqrt(max(0.0, 1 - dot(n, n)));
     float light = dot(normalize(float3(n, nz)), normalize(float3(-0.45, -0.65, 0.6)));
     float3 col = mix(float3(0.64, 0.74, 0.93), float3(1.0), saturate(light * 0.62 + 0.5));
-    float ca = cos(-in.angle), sa = sin(-in.angle);
-    float2 rq = float2(q.x * ca - q.y * sa, q.x * sa + q.y * ca);
     float h = hash21(floor(rq / u.cell) + in.seed);
     col *= 0.94 + 0.07 * h;
     if (h > 0.9) col *= 0.93;
-    if (d > in.r - u.cell * 1.05) col *= float3(0.84, 0.89, 0.97);
-    float r = in.r;
+    if (d > r - u.cell * 1.05) col *= float3(0.84, 0.89, 0.97);
+    col = mix(col, col * float3(0.86, 0.91, 0.985), in.age * 0.7);          // слежавшийся шар плотнее и синее
+    if (in.cutD > 0.01 && toCut < u.cell * 1.3) col *= float3(0.76, 0.84, 0.96) * (0.9 + 0.12 * h);   // шершавый излом
+
     if (flags & 1) {
         // лицо снеговика
         float es = max(u.cell * 0.51, r * 0.11);
         float2 ec = (floor(float2(0.34 * r, -0.24 * r) / u.cell) + 0.5) * u.cell;
-        float2 e1 = abs(q - float2(-ec.x, ec.y));
-        float2 e2 = abs(q - ec);
+        float2 e1 = abs(fq - float2(-ec.x, ec.y));
+        float2 e2 = abs(fq - ec);
         if (max(e1.x, e1.y) < es || max(e2.x, e2.y) < es) col = float3(0.09, 0.10, 0.16);
-        float nx = q.x + u.cell * 0.5, ny = q.y - (floor(0.10 * r / u.cell) + 0.5) * u.cell;
+        float nx = fq.x + u.cell * 0.5, ny = fq.y - (floor(0.10 * r / u.cell) + 0.5) * u.cell;
         float len = 0.78 * r;
         if (nx > 0 && nx < len && abs(ny) < 0.17 * r * (1 - nx / len) + u.cell * 0.35) {
             col = mix(float3(0.98, 0.52, 0.12), float3(0.85, 0.36, 0.08), nx / len);
@@ -189,7 +229,7 @@ fragment float4 ball_f(BOut in [[stage_in]], constant U& u [[buffer(0)]]) {
         if (r > 11) {
             float ms = max(u.cell * 0.51, r * 0.045);
             for (int k = -2; k <= 2; k++) {
-                float2 m = abs(q - (floor(float2(float(k) * 0.2 * r, (0.5 - 0.03 * float(k * k)) * r) / u.cell) + 0.5) * u.cell);
+                float2 m = abs(fq - (floor(float2(float(k) * 0.2 * r, (0.5 - 0.03 * float(k * k)) * r) / u.cell) + 0.5) * u.cell);
                 if (max(m.x, m.y) < ms) col = float3(0.11, 0.12, 0.18);
             }
         }
@@ -198,7 +238,7 @@ fragment float4 ball_f(BOut in [[stage_in]], constant U& u [[buffer(0)]]) {
         float bs = max(u.cell * 0.51, r * 0.09);
         for (int k = -1; k <= 1; k++) {
             if (r < 13.0 && k != 0) continue;       // на маленьком шаре помещается одна пуговица
-            float2 m = abs(q - (floor(float2(0, float(k) * 0.42 * r) / u.cell) + 0.5) * u.cell);
+            float2 m = abs(fq - (floor(float2(0, float(k) * 0.42 * r) / u.cell) + 0.5) * u.cell);
             if (max(m.x, m.y) < bs) col = float3(0.11, 0.12, 0.18);
         }
     }
@@ -237,10 +277,12 @@ final class Renderer {
     private let partPipe: MTLRenderPipelineState
     private var tex: MTLTexture?
     private var hardTex: MTLTexture?
+    private var caveTex: MTLTexture?
     private var partBufs: [MTLBuffer?] = [nil, nil, nil]
     private var ballBufs: [MTLBuffer?] = [nil, nil, nil]
     private var frame = 0
     private var texFor: ObjectIdentifier?
+    private let px = PxRenderer()       // человечки (People.swift)
 
     /// Шейдеры собираются один раз на всё приложение: слоёв снега несколько, и собирать их
     /// заново при появлении каждого — заметная задержка.
@@ -294,7 +336,9 @@ final class Renderer {
             d.usage = .shaderRead
             tex = device.makeTexture(descriptor: d)
             hardTex = device.makeTexture(descriptor: d)
+            caveTex = device.makeTexture(descriptor: d)
             sim.hardDirty = true
+            sim.caveDirty = true
             texFor = ObjectIdentifier(sim)
             sim.gridDirty = true
         }
@@ -311,6 +355,13 @@ final class Renderer {
                                 withBytes: raw.baseAddress!, bytesPerRow: sim.W)
             }
             sim.hardDirty = false
+        }
+        if sim.caveDirty, let caveTex {
+            sim.cave.withUnsafeBytes { raw in
+                caveTex.replace(region: MTLRegionMake2D(0, 0, sim.W, sim.H), mipmapLevel: 0,
+                                withBytes: raw.baseAddress!, bytesPerRow: sim.W)
+            }
+            sim.caveDirty = false
         }
 
         frame = (frame + 1) % 3
@@ -332,16 +383,21 @@ final class Renderer {
         }
 
         // шары (+ кольцо варежки)
+        // Стоящие шары рисуются ДО снега: то, что на них лежит и к ним налипло, должно быть поверх.
+        // Движущиеся — после, как и раньше.
         var insts: [BallInst] = []
+        var over: [BallInst] = []
         for b in sim.balls {
-            var flags: Float = 0
-            if b.parent != -1 { flags = b.hasChild ? 2 : 1 }
-            insts.append(BallInst(c: SIMD2(b.x, b.y), r: b.r, angle: b.angle, flags: flags, seed: b.seed,
-                                  pad: SIMD2(b.squash, b.cover)))
+            let inst = BallInst(c: SIMD2(b.x, b.y), r: b.r, angle: b.angle, flags: Float(b.decor), seed: b.seed,
+                                pad: SIMD2(0, 0),
+                                ex: SIMD4(b.cutA, b.cutD, min(1, b.rest / 240), b.angle - b.decorA))
+            if b.slot != 0 { insts.append(inst) } else { over.append(inst) }
         }
+        let underCount = insts.count
         if sim.handsMode && sim.heldId == -1 && sim.cursorOn {
-            insts.append(BallInst(c: SIMD2(sim.cx, sim.cy), r: 15, angle: 0, flags: 8, seed: 0))
+            over.append(BallInst(c: SIMD2(sim.cx, sim.cy), r: 15, angle: 0, flags: 8, seed: 0))
         }
+        insts += over
         var bbuf: MTLBuffer?
         if !insts.isEmpty, let b = buffer(&ballBufs[frame], bytes: insts.count * MemoryLayout<BallInst>.stride) {
             insts.withUnsafeBytes { raw in
@@ -355,10 +411,16 @@ final class Renderer {
         enc.setVertexBytes(&u, length: ulen, index: 0)
         enc.setFragmentBytes(&u, length: ulen, index: 0)
 
+        if let bbuf, underCount > 0 {
+            enc.setRenderPipelineState(ballPipe)
+            enc.setVertexBuffer(bbuf, offset: 0, index: 1)
+            enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: underCount)
+        }
         if let tex {
             enc.setRenderPipelineState(gridPipe)
             enc.setFragmentTexture(tex, index: 0)
             enc.setFragmentTexture(hardTex, index: 1)
+            enc.setFragmentTexture(caveTex, index: 2)
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
         if let pbuf {
@@ -366,11 +428,13 @@ final class Renderer {
             enc.setVertexBuffer(pbuf, offset: 0, index: 1)
             enc.drawPrimitives(type: .point, vertexStart: 0, vertexCount: pn)
         }
-        if let bbuf {
+        if let bbuf, insts.count > underCount {
             enc.setRenderPipelineState(ballPipe)
             enc.setVertexBuffer(bbuf, offset: 0, index: 1)
-            enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: insts.count)
+            enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4,
+                               instanceCount: insts.count - underCount, baseInstance: underCount)
         }
+        px.draw(sim: sim, enc: enc, device: device, format: rpd.colorAttachments[0].texture?.pixelFormat ?? .bgra8Unorm)
         enc.endEncoding()
     }
 }

@@ -38,7 +38,7 @@ enum SelfTest {
         td.storageMode = .shared
         guard let target = device.makeTexture(descriptor: td) else { return 1 }
 
-        func shot(_ name: String) {
+        func shot(_ name: String, crop: CGRect? = nil) {
             let rpd = MTLRenderPassDescriptor()
             rpd.colorAttachments[0].texture = target
             rpd.colorAttachments[0].loadAction = .clear
@@ -78,7 +78,9 @@ enum SelfTest {
             ctx.scaleBy(x: 1 / CGFloat(scale), y: -1 / CGFloat(scale))
             ctx.translateBy(x: 0, y: -CGFloat(ph))
             ctx.draw(snowImg, in: CGRect(x: 0, y: 0, width: pw, height: ph))
-            guard let out = ctx.makeImage() else { return }
+            guard let full = ctx.makeImage() else { return }
+            let s = CGFloat(scale)
+            guard let out = crop.map({ full.cropping(to: CGRect(x: $0.minX * s, y: $0.minY * s, width: $0.width * s, height: $0.height * s)) }) ?? full else { return }
             let url = URL(fileURLWithPath: outDir).appendingPathComponent(name + ".png")
             if let dst = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) {
                 CGImageDestinationAddImage(dst, out, nil)
@@ -341,21 +343,258 @@ enum SelfTest {
                          ball(900).x, ball(900).r, maxH, depth, cellsBefore, sim.snow.reduce(0) { $0 + ($1 != 0 ? 1 : 0) }))
             shot("5f-heavy-stopped")
 
-            // 5д. шар стоит долго: примерзает, его заметает, оседает, становится сугробом
-            sim.cfg.aging = true; sim.cfg.agingRate = 30; sim.cfg.intensity = 1
-            run(1.5, on: false)
-            print(String(format: "after ~45 s at rest: rest %.0f s, cover %.2f, frozen in place: %@", ball(900).rest, ball(900).cover, ball(900).rest > Sim.stuckAfter ? "yes" : "no"))
-            run(2.0, on: false)
-            shot("5g-ball-covered")
-            run(3.0, on: false)
-            print(String(format: "after ~195 s: squash %.2f, cover %.2f", ball(900).squash, ball(900).cover))
-            shot("5h-ball-slumped")
+            // 5д. шар стоит долго: примерзает, его припорашивает, потом заносит по бокам
+            sim.cfg.aging = true; sim.cfg.agingRate = 30; sim.cfg.intensity = 1; sim.cfg.flakeRate = 30
+            run(1.6, on: false)
+            print(String(format: "after ~45 s at rest: cover %.2f, frozen in place: %@", ball(900).cover, ball(900).rest > Sim.stuckAfter ? "yes" : "no"))
+            shot("5g-ball-dusted")
+
+            // примёрзший шар толкают: низ остаётся на месте настом, шар выходит сколотым
+            let stumpBefore = sim.hard.reduce(0) { $0 + ($1 >= Sim.frozen ? 1 : 0) }
+            sim.cfg.agingRate = 0
+            cur = SIMD2(ball(900).x - 70, ball(900).y)
+            run(0.05)
+            run(0.14, to: SIMD2(ball(900).x + 20, ball(900).y))
+            cur = SIMD2(-100, -100)
+            run(0.5, on: false)
+            let stumpAfter = sim.hard.reduce(0) { $0 + ($1 >= Sim.frozen ? 1 : 0) }
+            print(String(format: "shoved while frozen: chip depth %.2f of radius, %d frozen voxels left behind", ball(900).cutD, stumpAfter - stumpBefore))
+            shot("5h-ball-chipped")
+
+            // дальше стоит ещё долго: заносит целиком, шар уходит в сугроб
+            sim.cfg.agingRate = 30
+            run(4.0, on: false)
+            print(String(format: "after ~2 more minutes: cover %.2f, buried %.2f, squash %.2f", ball(900).cover, ball(900).bury, ball(900).squash))
+            shot("5i-ball-drifted-over")
             let before = sim.snow.reduce(0) { $0 + ($1 != 0 ? 1 : 0) }
-            run(2.5, on: false)
-            print("after ~270 s: balls left \(sim.balls.count), cells \(before) -> \(sim.snow.reduce(0) { $0 + ($1 != 0 ? 1 : 0) })")
-            shot("5i-ball-became-drift")
+            run(7.0, on: false)
+            print("after ~5 more minutes: balls left \(sim.balls.count), cells \(before) -> \(sim.snow.reduce(0) { $0 + ($1 != 0 ? 1 : 0) })")
+            shot("5j-ball-became-drift")
             sim.clearAll()
             sim.cfg.agingRate = 1; sim.cfg.flakeRate = 30
+        }
+
+        // 5е. снеговик под снегом: снег настоящий — ложится на шары и ветки, липнет, заносит.
+        //     Обозначения видны, пока их не закрыло; смахнул снег — они снова на месте.
+        do {
+            sim.clearAll()
+            sim.cfg.intensity = 1; sim.cfg.flakeRate = 30; sim.cfg.aging = true; sim.cfg.agingRate = 1
+            let base = Float(sim.H) * sim.cell
+            func build(_ x: Float, _ id: Int32) {
+                var a = Ball(id: id, x: x, y: base - 30, r: 30, seed: 1); a.grounded = true
+                var b = Ball(id: id + 1, x: x, y: base - 30 - 51, r: 22, seed: 2); b.parent = id; b.offY = -51
+                var c = Ball(id: id + 2, x: x, y: base - 30 - 51 - 36, r: 15, seed: 3); c.parent = id + 1; c.offY = -36
+                sim.balls += [a, b, c]
+            }
+            func onBalls() -> Int {
+                var n = 0
+                for i in sim.mask.indices where sim.mask[i] != 0 && sim.snow[i] != 0 { n += 1 }
+                return n
+            }
+            build(250, 910)
+            run(1.0, on: false)
+            print("snowman marks right after building: \(sim.balls.map { $0.decor }) (0 none, 1 face, 2 buttons and sticks)")
+            shot("5k-snowman-fresh")
+            sim.cfg.intensity = 12                  // ускоренный снегопад: ~12 секунд за секунду
+            run(5, on: false)
+            print("after ~1 min of snowfall: \(onBalls()) voxels of snow stuck on the balls, balls \(sim.balls.count)")
+            shot("5l-snowman-1min")
+            run(10, on: false)
+            print("after ~3 min: \(onBalls()) voxels stuck, balls \(sim.balls.count), marks \(sim.balls.map { $0.decor })")
+            shot("5m-snowman-3min")
+            // смахнуть снег с головы курсором: лицо снова видно
+            sim.cfg.intensity = 0
+            let stuck = onBalls()
+            cur = SIMD2(205, base - 117); run(0.05); run(0.5, to: SIMD2(295, base - 117)); run(0.4, to: SIMD2(205, base - 125))
+            cur = SIMD2(-100, -100); run(0.6, on: false)
+            print("brushed the head with the cursor: stuck voxels \(stuck) -> \(onBalls()), balls \(sim.balls.count)")
+            shot("5n-snowman-brushed")
+            sim.cfg.intensity = 12
+            run(30, on: false)
+            print("after ~9 min: balls left \(sim.balls.count) (buried balls become part of the drift)")
+            shot("5o-snowman-buried")
+
+            // свежий снеговик толкают: шары слетают, но остаются собой
+            sim.clearAll()
+            sim.cfg.intensity = 0; sim.cfg.flakeRate = 0
+            build(700, 920)
+            run(0.6, on: false)
+            cur = SIMD2(620, base - 85); run(0.05); run(0.1, to: SIMD2(700, base - 85))
+            shot("5p-snowman-hit")
+            cur = SIMD2(-100, -100)
+            run(1.5, on: false)
+            let left = sim.balls.sorted { $0.id < $1.id }
+            print("fresh snowman shoved in the middle: \(left.map { "id \($0.id): marks \($0.decor), on another ball: \($0.parent != -1)" })")
+            shot("5q-snowman-parts")
+
+            // сколотый шар катят по снегу: скол зарастает
+            sim.clearAll()
+            let c0 = Int(100 / sim.cell), c1 = Int(1100 / sim.cell)
+            for c in c0...c1 { for k in 0..<8 { sim.snow[(sim.H - 1 - k) * sim.W + c] = 180; sim.hard[(sim.H - 1 - k) * sim.W + c] = 0 } }
+            sim.gridDirty = true
+            var chipped = Ball(id: 930, x: 200, y: base - 24 - 20, r: 20, seed: 4)
+            chipped.cutD = 0.4; chipped.cutA = 0.6; chipped.vx = 330
+            sim.balls = [chipped]
+            run(0.4, on: false)
+            let mid = sim.balls.first?.cutD ?? -1
+            shot("5r-chipped-rolling")
+            run(2.5, on: false)
+            print(String(format: "chipped ball rolled over snow: chip 0.40 -> %.2f -> %.2f of radius, r %.1f", mid, sim.balls.first?.cutD ?? -1, sim.balls.first?.r ?? -1))
+            shot("5s-chip-healed")
+            sim.clearAll()
+            sim.cfg.agingRate = 1; sim.cfg.intensity = 1; sim.cfg.flakeRate = 30
+        }
+
+        // 7. долго лежащий снег (время ускорено в 30 раз): оседает под своим весом, у основания
+        //    испаряется, наст остаётся плитой над пустотами, а пустоты растут, пока плита не провалится
+        do {
+            sim.clearAll()
+            sim.resetHardness()
+            sim.cfg.flakeRate = 0; sim.cfg.aging = true; sim.cfg.agingRate = 1
+            sim.cfg.openOnly = false
+            sim.cfg.intensity = 3
+            sim.setLedges(ledges, windows: boxes())
+            sim.forceFill = true; sim.fillSurfaces(); sim.forceFill = false
+            run(0.3, on: false)
+            sim.cfg.intensity = 0                 // не доливать: видно, как сугробы оседают
+            func floorH() -> Float {
+                var n = 0, cols = 0
+                for x in Int(1080 / sim.cell)..<Int(1190 / sim.cell) {
+                    cols += 1
+                    for y in stride(from: sim.H - 1, through: sim.H - 40, by: -1) where sim.snow[y * sim.W + x] != 0 { n += 1 }
+                }
+                return Float(n) / Float(cols) * sim.cell
+            }
+            func stats(_ tag: String) {
+                var cells = 0, dense = 0, frozen = 0, caves = 0
+                for i in sim.snow.indices {
+                    if sim.snow[i] != 0 {
+                        cells += 1
+                        if sim.hard[i] >= Sim.frozen { frozen += 1 } else if sim.hard[i] >= Sim.dense { dense += 1 }
+                    }
+                    if sim.cave[i] != 0 { caves += 1 }
+                }
+                // шероховатость поверхности на полу: сколько столбцов торчат над обоими соседями (зубцы)
+                var hs: [Int] = []
+                for x in 0..<sim.W {
+                    var t = sim.H - 1
+                    while t >= sim.H - 40 && (sim.snow[t * sim.W + x] != 0 || sim.cave[t * sim.W + x] != 0) { t -= 1 }
+                    hs.append(sim.H - 1 - t)
+                }
+                var spikes = 0
+                for x in 1..<(sim.W - 1) where hs[x] > hs[x - 1] && hs[x] > hs[x + 1] { spikes += 1 }
+                print(String(format: "%@: cells %d (dense %d, frozen %d), hollow cells %d; settled %d, hollowed %d, collapsed %d; floor snow %.1f pt; spikes %d",
+                             tag, cells, dense, frozen, caves, sim.statSettled, sim.statHollowed, sim.statCollapsed, floorH(), spikes))
+            }
+            let floorCrop = CGRect(x: 0, y: 640, width: 450, height: 110)
+            let winCrop = CGRect(x: 80, y: 160, width: 450, height: 60)
+            stats("old snow, fresh")
+            shot("11a-fresh", crop: floorCrop)
+            sim.cfg.agingRate = 30
+            run(6, on: false)
+            stats("~3 min")
+            shot("11b-3min", crop: floorCrop)
+            run(8, on: false)
+            stats("~7 min")
+            shot("11c-7min", crop: floorCrop)
+            shot("11c-7min-window", crop: winCrop)
+            run(16, on: false)
+            stats("~15 min")
+            shot("11d-15min", crop: floorCrop)
+            shot("11d-15min-window", crop: winCrop)
+            run(30, on: false)
+            stats("~30 min")
+            shot("11e-30min", crop: floorCrop)
+            shot("11e-30min-window", crop: winCrop)
+            shot("11f-30min-full")
+
+            // то же, но сугробы доливаются (как по умолчанию) — тоже в 30 раз быстрее
+            sim.clearAll(); sim.resetHardness()
+            sim.cfg.agingRate = 1; sim.cfg.intensity = 3
+            sim.forceFill = true; sim.fillSurfaces(); sim.forceFill = false
+            sim.cfg.agingRate = 30; sim.cfg.intensity = 30
+            let s0 = (sim.statSettled, sim.statHollowed, sim.statCollapsed)
+            for (k, m) in [10, 20, 30].enumerated() {
+                run(20, on: false)
+                stats("refilled ~\(m) min")
+                shot("11g\(k)-refilled-\(m)min", crop: floorCrop)
+                shot("11g\(k)-refilled-\(m)min-window", crop: winCrop)
+            }
+            print("refilled 30 min: settled \(sim.statSettled - s0.0), hollowed \(sim.statHollowed - s0.1), collapsed \(sim.statCollapsed - s0.2)")
+
+            // 7б. Предел не обрывает снегопад: выше него снег ложится понемногу, а лишнее уходит
+            //     на уплотнение и подтаивание снизу. Три погоды по 20 минут (в 30 раз быстрее).
+            for (name, w) in [("light", Float(0.5)), ("normal", 1), ("blizzard", 2.2)] {
+                sim.clearAll(); sim.resetHardness()
+                sim.cfg.agingRate = 1; sim.cfg.intensity = 3
+                sim.forceFill = true; sim.fillSurfaces(); sim.forceFill = false
+                sim.cfg.agingRate = 30; sim.cfg.intensity = w * 30
+                let m0 = sim.statMelted
+                var line = "limit, \(name): level floor/windows"
+                for k in 1...4 {
+                    run(10, on: false)
+                    let l = sim.fillLevel()
+                    line += String(format: " %d min %.2f/%.2f;", k * 5, l.floor, l.windows)
+                }
+                var fresh = 0, cells = 0
+                for i in sim.snow.indices where sim.snow[i] != 0 { cells += 1; if sim.hard[i] < Sim.dense { fresh += 1 } }
+                print(line + " melted \(sim.statMelted - m0), fresh cells \(fresh * 100 / max(1, cells))%")
+                if name == "normal" {
+                    shot("13a-limit-normal-20min", crop: floorCrop)
+                    shot("13a-limit-normal-20min-window", crop: winCrop)
+                }
+            }
+            // сугробы «Высокие», потом переключили на «Низкие»: лишнее не исчезает разом, а оседает и подтаивает
+            sim.clearAll(); sim.resetHardness()
+            sim.cfg.agingRate = 1; sim.cfg.intensity = 3; sim.cfg.capScale = 1.8
+            sim.forceFill = true; sim.fillSurfaces(); sim.forceFill = false
+            sim.cfg.capScale = 0.6; sim.cfg.agingRate = 30; sim.cfg.intensity = 30
+            var line = "depth high -> low: level floor/windows"
+            for k in 0...4 {
+                let l = sim.fillLevel()
+                line += String(format: " %d min %.2f/%.2f;", k * 3, l.floor, l.windows)
+                if k < 4 { run(6, on: false) }
+            }
+            print(line)
+            shot("13b-high-to-low-12min", crop: floorCrop)
+            sim.cfg.capScale = 1; sim.cfg.intensity = 3; sim.cfg.agingRate = 1
+        }
+
+        // 7а. шары на насте над пустотой: лёгкий стоит, тяжёлый проваливается; слишком широкая пустота рушится сама
+        do {
+            sim.clearAll()
+            sim.cfg.intensity = 0; sim.cfg.flakeRate = 0; sim.cfg.aging = false; sim.cfg.agingRate = 1
+            sim.setLedges([], windows: [])
+            let depth = 16, W = sim.W, H = sim.H
+            for c in Int(60 / sim.cell)...Int(1140 / sim.cell) {
+                for k in 0..<depth { sim.snow[(H - 1 - k) * W + c] = 150; sim.hard[(H - 1 - k) * W + c] = 230 }
+            }
+            func hollow(_ x0: Float, _ cols: Int, rows: Int) {
+                let c0 = Int(x0 / sim.cell)
+                for c in c0..<(c0 + cols) { for k in 0..<rows { sim.snow[(H - 1 - k) * W + c] = 0 } }
+            }
+            hollow(150, 15, rows: 12)         // под тяжёлым шаром: наст 12 pt
+            hollow(600, 15, rows: 12)         // под лёгким
+            hollow(900, 45, rows: 12)         // широкая — без шаров
+            sim.gridDirty = true; sim.hardDirty = true
+            sim.recheckHanging()
+            run(0.4, on: false)
+            let before = sim.statCollapsed
+            print("crust over hollows: wide hollow (135 pt) collapsed cells: \(before)")
+            let surface = Float(H - depth) * sim.cell
+            sim.balls.append(Ball(id: 950, x: 172, y: surface - 28.5, r: 28, seed: 3))
+            sim.balls.append(Ball(id: 951, x: 622, y: surface - 7.5, r: 7, seed: 5))
+            run(0.1, on: false)
+            shot("12a-balls-on-crust", crop: CGRect(x: 60, y: 580, width: 1100, height: 170))
+            run(2.5, on: false)
+            func ball(_ id: Int32) -> Ball? { sim.balls.first { $0.id == id } }
+            print(String(format: "heavy ball r 28: bottom %.0f -> %.0f pt (fell through: %@); light ball r 7: bottom %.0f -> %.0f; collapsed cells %d",
+                         surface, (ball(950).map { $0.y + $0.r } ?? -1), ((ball(950).map { $0.y + $0.r } ?? 0) > surface + 4) ? "yes" : "NO",
+                         surface, (ball(951).map { $0.y + $0.r } ?? -1), sim.statCollapsed - before))
+            shot("12b-heavy-fell-through", crop: CGRect(x: 60, y: 580, width: 1100, height: 170))
+            sim.clearAll()
+            sim.cfg.aging = true; sim.cfg.flakeRate = 30; sim.cfg.openOnly = true
+            sim.setLedges(ledges, windows: boxes())
         }
 
         // 6. самонарастание выключено: шапки строят только упавшие снежинки

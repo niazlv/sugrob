@@ -13,6 +13,16 @@ if let i = args.firstIndex(of: "--fuzz") {
     exit(Fuzz.run(seconds: secs, seed: seed, cell: cell))
 }
 
+if let i = args.firstIndex(of: "--people-test") {
+    let dir = i + 1 < args.count ? args[i + 1] : FileManager.default.currentDirectoryPath
+    exit(PeopleTest.run(outDir: dir, args: Array(args.dropFirst(i + 2))))
+}
+
+if let i = args.firstIndex(of: "--wind-test") {
+    let dir = i + 1 < args.count ? args[i + 1] : FileManager.default.currentDirectoryPath
+    exit(WindTest.run(outDir: dir, args: Array(args.dropFirst(i + 2))))
+}
+
 if args.contains("--version") {
     let i = Bundle.main.infoDictionary
     print("\(i?["CFBundleShortVersionString"] as? String ?? "?") (\(i?["CFBundleVersion"] as? String ?? "?"))")

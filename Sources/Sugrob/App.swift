@@ -39,6 +39,9 @@ final class Settings {
         set { d.set(newValue, forKey: "cornerRadius") }
     }
     var autoFill: Bool { get { d.object(forKey: "autoFill") as? Bool ?? true } set { d.set(newValue, forKey: "autoFill") } }
+    /// Человечки: 0 — не приходят, 1 — редко, 2 — иногда, 3 — часто.
+    var people: Int { get { d.object(forKey: "people") as? Int ?? 2 } set { d.set(newValue, forKey: "people") } }
+    var peopleSize: Int { get { d.object(forKey: "peopleSize") as? Int ?? 2 } set { d.set(newValue, forKey: "peopleSize") } }
 
     func simConfig() -> SimConfig {
         var c = SimConfig()
@@ -55,6 +58,12 @@ final class Settings {
         c.floor = flag("onFloor")
         c.sweep = flag("sweep")
         c.aging = flag("aging")
+        c.people = people
+        c.peopleLadders = flag("peopleLadders")
+        c.peopleStay = flag("peopleStay")
+        c.storms = flag("storms")
+        c.peopleEvents = flag("peopleEvents")
+        c.peopleSize = Float(peopleSize)
         return c
     }
 }
@@ -96,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
+        Wind.linked = true          // буран один на все экраны
         buildOverlays()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -229,6 +239,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item("→ Вправо", #selector(setWind(_:)), tag: 1, on: settings.wind == 1),
             item("⇒ Сильный вправо", #selector(setWind(_:)), tag: 2, on: settings.wind == 2),
         ]))
+        menu.addItem(sub("Буран", [
+            rule("Налетает время от времени", "storms"),
+            item("Устроить буран сейчас", #selector(stormNow)),
+        ]))
         menu.addItem(sub("Сугробы", [
             item("Низкие", #selector(setDepth(_:)), tag: 0, on: settings.depth == 0),
             item("Средние", #selector(setDepth(_:)), tag: 1, on: settings.depth == 1),
@@ -265,6 +279,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ]))
         menu.addItem(rule("Курсор смахивает снег", "sweep"))
         menu.addItem(rule("Снег слёживается и подмерзает", "aging"))
+        menu.addItem(sub("Человечки", [
+            item("Не приходят", #selector(setPeople(_:)), tag: 0, on: settings.people == 0),
+            item("Заходят редко", #selector(setPeople(_:)), tag: 1, on: settings.people == 1),
+            item("Заходят иногда", #selector(setPeople(_:)), tag: 2, on: settings.people == 2),
+            item("Заходят часто", #selector(setPeople(_:)), tag: 3, on: settings.people == 3),
+            .separator(),
+            rule("Строят лестницы к окнам", "peopleLadders"),
+            rule("Остаются жить (строят иглу)", "peopleStay"),
+            rule("Зимние происшествия (снег с карниза, санки, ёлка)", "peopleEvents"),
+            item("Маленькие", #selector(setPeopleSize(_:)), tag: 2, on: settings.peopleSize == 2),
+            item("Побольше", #selector(setPeopleSize(_:)), tag: 3, on: settings.peopleSize == 3),
+            .separator(),
+            item("Позвать сейчас", #selector(summonPeople)),
+            item("Прогнать всех и убрать постройки", #selector(clearPeople)),
+        ]))
         menu.addItem(item("Насыпать снег сейчас", #selector(fillNow)))
         menu.addItem(item("Убрать весь снег (лопата)", #selector(shovel)))
         menu.addItem(.separator())
@@ -272,7 +301,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      "⌃⌥ + зажать мышь — слепить и катать снежок",
                      "Отпустить на ходу — бросить",
                      "Опустить шар на шар — снеговик",
-                     "Наст (голубой) колется резким взмахом или снежком"] {
+                     "Наст (голубой) колется резким взмахом или снежком",
+                     "Старый снег оседает, под настом растут пустоты",
+                     "Тяжёлый шар продавливает тонкий наст над пустотой",
+                     "Человечка можно сбить быстрым курсором или шаром — он ответит снежком"] {
             let h = NSMenuItem(title: hint, action: nil, keyEquivalent: "")
             h.isEnabled = false
             menu.addItem(h)
@@ -320,6 +352,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         applyConfig()
         pollWindows()
     }
+
+    @objc private func setPeople(_ s: NSMenuItem) { settings.people = s.tag; applyConfig() }
+    @objc private func setPeopleSize(_ s: NSMenuItem) { settings.peopleSize = s.tag; applyConfig() }
+    @objc private func stormNow() { for o in overlays where o.active { o.sim.wind.startStorm() } }
+    @objc private func summonPeople() { for o in overlays where o.active { o.sim.people.summon() } }
+    @objc private func clearPeople() { for o in overlays { o.sim.people.clearAll(o.sim) } }
 
     @objc private func fillNow() {
         for o in overlays { o.sim.forceFill = true; o.sim.fillSurfaces(); o.sim.forceFill = false }

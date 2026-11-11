@@ -29,6 +29,8 @@ enum Fuzz {
         for _ in 0..<600 { sim.step(1.0 / 60) }
         sim.cfg.intensity = 1
         sim.cfg.agingRate = 12       // чтобы за прогон успел появиться и плотный снег, и наст
+        sim.cfg.people = 3           // человечки заходят часто: под случайным курсором, шарами и окнами
+        sim.people.reseed(seed &+ 99)
 
         var cur = SIMD2<Float>(700, 400), target = cur
         var speed: Float = 300
