@@ -1,52 +1,64 @@
+<div align="center">
+
+<img src="docs/icon.png" width="112" alt="">
+
 # Sugrob
 
-**Physically simulated snow for your Mac desktop.**
+**Physically simulated snow for your Mac desktop**
 
 English · [Русский](README.ru.md)
 
-![build](https://github.com/niazlv/sugrob/actions/workflows/build.yml/badge.svg)
+[![Release](https://img.shields.io/github/v/release/niazlv/sugrob?label=release&color=4f7be0)](https://github.com/niazlv/sugrob/releases/latest)
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-25336b)
+[![MIT license](https://img.shields.io/badge/license-MIT-8aa4d6)](LICENSE)
+[![Build](https://github.com/niazlv/sugrob/actions/workflows/build.yml/badge.svg)](https://github.com/niazlv/sugrob/actions/workflows/build.yml)
 
-![A snowman built on top of a window](docs/snowman.png)
+<img src="docs/hero.webp" width="900" alt="The cursor pushes snow off a window; it pours onto the Dock, and a quick flick scatters the pile">
 
-Sugrob (Russian for “snowdrift”) is a small menu-bar app. Snow falls over your desktop, settles on
-the top edges of windows, on the Dock, on desktop widgets and along the bottom of the screen — and
-then behaves like snow. You can brush it away with the cursor, push it off a window edge, roll it
-into balls, throw snowballs and build a snowman. Clicks pass straight through, so it never gets in
-the way of work.
+**[Download Sugrob.zip](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.zip)**
 
-| Pushing snow off a window | Old snow turns into an icy crust |
-| --- | --- |
-| ![Snow pouring off a window edge](docs/push.png) | ![Frozen crust on a window](docs/crust.png) |
+</div>
+
+Sugrob (Russian for “snowdrift”) lives in the menu bar. Snow falls over your desktop, settles on
+windows, the Dock and the bottom of the screen, and from then on behaves like snow: you can brush
+it away, push it off an edge or roll it into a ball. Clicks pass straight through, so it never
+gets in the way of work.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/snowman.webp" alt="Three snowballs are rolled and stacked"><br><b>Snowman.</b> A ball grows as it rolls. Stack three of them.</td>
+<td width="50%"><img src="docs/people.webp" alt="Little people finish a ladder and climb onto a window"><br><b>Visitors.</b> They build a ladder out of snow and climb onto your window.</td>
+</tr>
+<tr>
+<td><img src="docs/tree.webp" alt="One of the little people carries in a Christmas tree and plants it in the snow"><br><b>Christmas tree.</b> Sooner or later someone drags one in.</td>
+<td><img src="docs/storm.webp" alt="Wind drives snow across the screen and strips it off a window"><br><b>Snow squall.</b> It arrives uninvited, strips the caps off windows and sends snow drifting.</td>
+</tr>
+</table>
 
 ## What it does
 
-- **Voxel snow.** Settled snow is a grid of small cubes; anything knocked loose becomes flying
-  chunks that land, slide down slopes and settle again. Volume is conserved.
-- **Brush and plough.** Move the cursor through a drift: slowly, and it pushes a wave of snow ahead
-  of it; with a quick flick, snow flies off.
-- **Snowballs.** Hold `⌃⌥` and drag to scoop a ball. It rolls on top of the snow and winds up the
-  surface layer, so it grows as it travels. Let go on the move to throw it — a hard hit bursts it.
-- **Snowmen.** Lower one ball gently onto another and it sticks. The top ball gets eyes, a carrot
-  and a smile.
-- **Balls have weight and age.** They roll downhill on their own. A heavy ball sinks into soft
-  snow, compacts it and ploughs a berm ahead of itself. A ball left standing freezes in place,
-  gets snowed over, slumps and finally becomes a drift.
-- **Snow ages.** Fresh snow is loose. After a few minutes it packs down; later it freezes into a
-  blue icy crust the cursor just slides over — crack it with a sharp strike or a snowball.
-- **It follows your windows.** Drag a window and its snow rides along; close it and the snow falls.
-  The snow line follows rounded window corners. Each desktop (Space) keeps its own snow.
-- **Weather.** Light snow, steady snowfall or a blizzard; wind in either direction; drift height;
-  voxel size.
-- **No permissions.** No screen recording, no accessibility access. The app only reads window
-  frames — never titles or contents.
+- **Snow that acts like snow.** Settled snow is a grid of small cubes. Anything knocked loose flies
+  off in chunks, slides down slopes and settles again; volume is conserved. Over time snow packs
+  down, slumps and freezes into a blue icy crust.
+- **You can touch it.** Brush it away with the cursor, push it off a window edge, roll a ball,
+  throw a snowball, build a snowman.
+- **It sticks to your windows.** Drag a window and its drift rides along; close it and the snow
+  falls. Each desktop (Space) keeps its own snow.
+- **Little people.** Every so often a group in parkas and bobble hats wanders in. They have
+  snowball fights, build snowmen, dig tunnels and pull each other on sledges. If one of them gets
+  buried, the others run to dig them out. Some stay for good and build an igloo.
+- **Weather.** Light snow, steady snowfall or a blizzard, wind in either direction, and a squall
+  that turns up whenever it likes.
+- **It doesn't peek.** No screen recording, no accessibility access. The app reads window frames
+  only, never titles or contents.
 
-Everything can be switched on and off from the ❄ menu.
+Everything can be adjusted or switched off from the ❄ menu.
 
 ## Install
 
-1. Download `Sugrob.zip` from the [latest release](https://github.com/niazlv/sugrob/releases/latest).
-2. Unzip it and move `Sugrob.app` to Applications.
-3. The app is not notarized by Apple, so the first launch needs your approval: try to open it,
+1. Download [Sugrob.zip](https://github.com/niazlv/sugrob/releases/latest/download/Sugrob.zip)
+   and move `Sugrob.app` to Applications.
+2. The app is not notarized by Apple, so the first launch needs your approval: try to open it,
    then go to **System Settings → Privacy & Security** and click **Open Anyway**. Or remove the
    quarantine flag in Terminal:
 
@@ -54,105 +66,131 @@ Everything can be switched on and off from the ❄ menu.
    xattr -dr com.apple.quarantine /Applications/Sugrob.app
    ```
 
-Requires macOS 13 or later. The build is universal (Apple Silicon and Intel); it has been used
+3. There is no window. Look for the ❄ icon in the menu bar.
+
+Requires macOS 13 or later. The build is universal (Apple Silicon and Intel), but it has been used
 day to day only on Apple Silicon with macOS 26.
 
-There is no window: look for the ❄ icon in the menu bar.
+Sugrob updates itself: every few hours it checks this repository's releases and installs a new
+version while the Mac is idle. The update manifest is signed, and automatic updates can be turned
+off in the menu.
 
 ## Controls
 
-| Action | How |
+| To do this | Do this |
 | --- | --- |
-| Brush snow away | Move the cursor through it |
-| Throw snow | Flick the cursor through a drift |
+| Brush snow away | Move the cursor through a drift |
+| Scatter snow | Flick the cursor through it |
 | Make a snowball | Hold `⌃⌥`, press the mouse button on snow and drag |
 | Throw a snowball | Release while moving |
 | Build a snowman | Lower a ball gently onto the top of another |
 | Pick a ball up again | Hold `⌃⌥` and press on it |
-| Roll a loose ball | Just push it with the cursor |
-| Crack the icy crust | A sharp strike with the cursor, or a snowball |
+| Crack the icy crust | Strike it sharply with the cursor, or throw a snowball |
+| Tease the little people | Clip one with a fast cursor or a ball, and expect a snowball back |
 
-## The menu
+<details>
+<summary><b>The menu is in Russian for now. Here is a glossary.</b></summary>
 
-The interface is in Russian for now. This is what the items mean:
-
-| Menu item | Meaning |
+| In the menu | Meaning |
 | --- | --- |
 | Поставить снег на паузу / Вернуть зиму | Pause the snow / bring it back |
-| Погода → Лёгкий снег, Снегопад, Метель | Weather: light snow, snowfall, blizzard |
-| Ветер | Wind: strong left, left, calm, right, strong right |
-| Сугробы → Низкие, Средние, Высокие | Drift height: low, medium, high |
-| Размер вокселя | Voxel size: small, medium, large, extra large |
-| Сугробы растут сами | Drifts grow on their own (off: only flakes that actually land build them) |
-| Где лежит снег | Where snow may lie: windows, windows touching the menu bar, narrow windows, desktop widgets, bottom of the screen, the Dock; “don't lie over other windows” |
-| Скругление углов окон | Window corner radius used for the snow line: none, small, medium, large |
-| Курсор смахивает снег | The cursor brushes snow |
-| Снег слёживается и подмерзает | Snow packs down and freezes over time |
-| Насыпать снег сейчас | Fill all surfaces with snow right now |
-| Убрать весь снег (лопата) | Remove all snow |
-| Обновления | Updates: check now, update automatically |
+| Насыпать снег сейчас | Cover every surface with snow right now |
+| Убрать весь снег | Remove all snow |
+| Погода: Лёгкий снег, Снегопад, Метель | Weather: light snow, snowfall, blizzard |
+| Погода → Ветер, Штиль | Wind, calm |
+| Погода → Иногда налетает буран | A snow squall blows in now and then |
+| Сугробы: Низкие, Средние, Высокие | Drift height: low, medium, high |
+| Сугробы → Растут сами | Drifts grow on their own (off: only flakes that actually land build them) |
+| Сугробы → Слёживаются и подмерзают | Snow packs down and freezes over time |
+| Сугробы → Курсор смахивает снег | The cursor brushes snow |
+| Сугробы → Где лежит снег | Where snow may settle: windows, widgets, the Dock, the bottom of the screen |
+| Человечки | Little people: how often they visit and what they are allowed to do |
+| Внешний вид | Appearance: voxel size and the window corner radius used for the snow line |
+| Как играть | How to play: a list of hints |
+| О Сугробе | About Sugrob |
 | Запускать при входе | Launch at login |
+| Обновления | Updates |
 | Выйти из Сугроба | Quit |
+
+</details>
 
 ## Build from source
 
-You need Xcode (or its command-line tools) with Swift 5.9 or later. There are no dependencies.
+You need Xcode or its command-line tools (Swift 5.9 or later). There are no dependencies.
 
 ```bash
-./build.sh          # build/Sugrob.app for this Mac
-./build.sh --dist   # universal build/dist/Sugrob.app and build/Sugrob.zip
+./build.sh
 ```
 
-The simulation is independent of the UI and can be tested headless:
+The app is written to `build/Sugrob.app`. The simulation does not depend on the UI and is tested
+headless; GitHub Actions runs the same stress test on every push:
 
 ```bash
-.build/release/Sugrob --fuzz 300 1 3      # 300 simulated seconds of random abuse, seed 1, 3 pt voxels
-.build/release/Sugrob --selftest shots    # scripted scenario rendered to PNG files in ./shots
+.build/release/Sugrob --fuzz 300 1 3
 ```
 
-The fuzz run fails if any simulation step takes too long, which is how a hang is caught before it
-reaches a real desktop. Every push is built and stress-tested by GitHub Actions.
+<details>
+<summary><b>How it works</b></summary>
 
-## How it works
-
-- **Two states of snow.** Settled snow lives in a grid (one byte per voxel, plus a “hardness”
-  byte for ageing). Loose snow is a list of particles with velocity, gravity and wind. A voxel that
-  loses support becomes a particle; a particle that lands becomes a voxel and slides until the
-  slope is gentle enough.
-- **Ledges.** The top edges of visible windows, the Dock and the bottom of the screen are supports.
-  Window frames come from `CGWindowListCopyWindowInfo`, which needs no special permission as long
-  as window titles are not read.
+- **Two states of snow.** Settled snow lives in a grid: one byte per cell, plus a “hardness” byte
+  for ageing. Loose snow is a list of particles with velocity, gravity and wind. A cell that loses
+  its support becomes a particle; a particle that lands on something becomes a cell.
+- **Ledges.** The top edges of visible windows, the Dock and the bottom of the screen. Window
+  frames come from `CGWindowListCopyWindowInfo`, which needs no permission as long as titles are
+  not read.
 - **Rendering.** One transparent, click-through Metal layer per desktop. The grid is uploaded as a
-  texture and shaded in a fragment shader; particles are drawn as points.
-- **Input.** The cursor position and modifier keys are polled, so the layer never has to intercept
-  events. It only captures the mouse while `⌃⌥` is held.
+  texture and shaded in a fragment shader.
+- **Input.** The cursor position and modifier keys are polled, so no events have to be intercepted.
+  The layer captures the mouse only while `⌃⌥` is held.
+- **The little people** are part of the same simulation, not a cartoon drawn over it. A snowball
+  is made of cells taken from a drift, ladder steps are trampled snow, and an avalanche really
+  does bury whoever is underneath.
 
-Two things rely on undocumented macOS calls, looked up at run time: the identifier of the current
-desktop (so each one can have its own snow) and the Dock's rectangle. If they are missing, the app
-falls back to one shared layer and an estimated Dock size.
+The identifier of the current desktop and the Dock's rectangle come from undocumented macOS calls
+that are looked up at launch. If they are missing, the app falls back to one shared layer and an
+estimated Dock size.
 
-## Updates
+The animations on this page are recorded by `tools/readme-media/make.sh`, using the same
+simulation with no screen attached.
 
-The app checks this repository's releases for a new version every few hours. Update manifests are
-signed, and an update is installed only when the Mac has been idle for a minute. Automatic
-updates can be turned off under **Обновления** in the menu.
+</details>
 
 ## Support
 
-If Sugrob made your desktop a little cosier, you can support its development. Please send only on
-the network listed next to the address.
+<div align="center">
+
+<img src="docs/village.webp" width="640" alt="Little people warm themselves at a campfire between igloos">
+
+<sub>The campfire runs on donations.</sub>
+
+</div>
+
+Sugrob is free, with no ads and no subscriptions. There is exactly one subscription involved: the
+author's Claude plan, and that is where donations go. If you know, you know. If you don't, think
+of it as buying the author a coffee, except that a neural network drinks it.
+
+<div align="center">
+
+<img src="docs/donate-btc.png" width="150" alt="QR code: Bitcoin address">&nbsp;
+<img src="docs/donate-eth.png" width="150" alt="QR code: Ethereum address">&nbsp;
+<img src="docs/donate-bnb.png" width="150" alt="QR code: BNB Chain address">&nbsp;
+<img src="docs/donate-sol.png" width="150" alt="QR code: Solana address">&nbsp;
+<img src="docs/donate-trx.png" width="150" alt="QR code: Tron address">
+
+<sub>Click a card to open it on its own at full size, which makes it easier to scan.</sub>
+
+</div>
 
 | Network | Address |
 | --- | --- |
-| Bitcoin (Native SegWit) | `bc1qyt9hzvtd69t5jkk7h39fqd4pz7tg9jl9pq4arf` |
-| Ethereum | `0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25` |
+| Bitcoin | `bc1qyt9hzvtd69t5jkk7h39fqd4pz7tg9jl9pq4arf` |
+| Ethereum (ERC-20)<br><sub>also Base, Arbitrum, Optimism, Polygon, Linea</sub> | `0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25` |
 | BNB Chain (BEP-20) | `0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25` |
-| Base | `0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25` |
-| Polygon | `0xBA10A984A88AeE82A2D3b30EA6d91BC554D46A25` |
 | Solana | `9GhoGBorb8xvkUjFgGfrcFun1m6ad9K9chDUhvagXYwX` |
 | Tron (TRC-20) | `TKyahQhTeLdMraKDbedLz17jorRTfER8xX` |
 
-The Ethereum address is the same on Arbitrum, Optimism and Linea.
+In your wallet, pick the same network as in the row with the address: a transfer sent on any other
+network will not arrive.
 
 ## License
 
