@@ -11,3 +11,6 @@ build/
 # machine-local tooling and server setup (not part of the app)
 deploy/
 *.local.*
+
+# python caches of helper scripts
+__pycache__/

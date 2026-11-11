@@ -285,7 +285,7 @@ enum PeopleTest {
             _ = P.debugSpawn(sim, x: 300, y: hPt - 30)
             _ = P.debugSpawn(sim, x: 760, y: hPt - 30, kid: true)
             P.summon()
-            let fy = (0..<sim.H).first(where: { sim.snow[$0 * sim.W + Int(640 / cell)] != 0 }).map { Float($0) * cell } ?? hPt
+            let fy = P.ground(sim, x: 640, feet: hPt - 60, up: 0) ?? hPt        // костёр — на полу (над ним окно со своей шапкой)
             P.fires.append(Fire(id: 9000, x: 640, y: fy, born: sim.time, until: sim.time + 1000))
             run(40)
             while sim.time < 300 && (P.ladders.first?.front ?? 0) < 20 { run(5) }     // гости пришли, лестница уже в работе

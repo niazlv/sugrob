@@ -225,60 +225,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.submenu = m
             return i
         }
+        func rule(_ title: String, _ key: String, _ def: Bool = true) -> NSMenuItem {
+            let i = item(title, #selector(toggleRule(_:)), on: settings.flag(key, def))
+            i.representedObject = key
+            return i
+        }
+        func hint(_ text: String) -> NSMenuItem {
+            let h = NSMenuItem(title: text, action: nil, keyEquivalent: "")
+            h.isEnabled = false
+            return h
+        }
+
+        // сверху — то, что нажимают чаще всего
         menu.addItem(item(paused ? "Вернуть зиму" : "Поставить снег на паузу", #selector(togglePause)))
+        menu.addItem(item("Насыпать снег сейчас", #selector(fillNow)))
+        menu.addItem(item("Убрать весь снег", #selector(shovel)))
         menu.addItem(.separator())
+
         menu.addItem(sub("Погода", [
             item("Лёгкий снег", #selector(setWeather(_:)), tag: 0, on: settings.weather == 0),
             item("Снегопад", #selector(setWeather(_:)), tag: 1, on: settings.weather == 1),
             item("Метель", #selector(setWeather(_:)), tag: 2, on: settings.weather == 2),
-        ]))
-        menu.addItem(sub("Ветер", [
-            item("⇐ Сильный влево", #selector(setWind(_:)), tag: -2, on: settings.wind == -2),
-            item("← Влево", #selector(setWind(_:)), tag: -1, on: settings.wind == -1),
-            item("Штиль", #selector(setWind(_:)), tag: 0, on: settings.wind == 0),
-            item("→ Вправо", #selector(setWind(_:)), tag: 1, on: settings.wind == 1),
-            item("⇒ Сильный вправо", #selector(setWind(_:)), tag: 2, on: settings.wind == 2),
-        ]))
-        menu.addItem(sub("Буран", [
-            rule("Налетает время от времени", "storms"),
+            .separator(),
+            sub("Ветер", [
+                item("⇐ Сильный влево", #selector(setWind(_:)), tag: -2, on: settings.wind == -2),
+                item("← Влево", #selector(setWind(_:)), tag: -1, on: settings.wind == -1),
+                item("Штиль", #selector(setWind(_:)), tag: 0, on: settings.wind == 0),
+                item("→ Вправо", #selector(setWind(_:)), tag: 1, on: settings.wind == 1),
+                item("⇒ Сильный вправо", #selector(setWind(_:)), tag: 2, on: settings.wind == 2),
+            ]),
+            .separator(),
+            rule("Иногда налетает буран", "storms"),
             item("Устроить буран сейчас", #selector(stormNow)),
         ]))
         menu.addItem(sub("Сугробы", [
             item("Низкие", #selector(setDepth(_:)), tag: 0, on: settings.depth == 0),
             item("Средние", #selector(setDepth(_:)), tag: 1, on: settings.depth == 1),
             item("Высокие", #selector(setDepth(_:)), tag: 2, on: settings.depth == 2),
-        ]))
-        menu.addItem(sub("Размер вокселя", [
-            item("Мелкий", #selector(setVoxel(_:)), tag: 2, on: settings.voxel == 2),
-            item("Средний", #selector(setVoxel(_:)), tag: 3, on: settings.voxel == 3),
-            item("Крупный", #selector(setVoxel(_:)), tag: 4, on: settings.voxel == 4),
-            item("Очень крупный", #selector(setVoxel(_:)), tag: 6, on: settings.voxel == 6),
-        ]))
-        menu.addItem(.separator())
-        menu.addItem(item("Сугробы растут сами", #selector(toggleAutoFill), on: settings.autoFill))
-        func rule(_ title: String, _ key: String, _ def: Bool = true) -> NSMenuItem {
-            let i = item(title, #selector(toggleRule(_:)), on: settings.flag(key, def))
-            i.representedObject = key
-            return i
-        }
-        menu.addItem(sub("Где лежит снег", [
-            rule("На окнах", "onWindows"),
-            rule("На окнах вплотную к строке меню", "onMenuWindows"),
-            rule("На узких окнах", "onNarrow"),
-            rule("На виджетах рабочего стола", "onWidgets"),
-            rule("Внизу экрана", "onFloor"),
-            rule("На Dock", "onDock"),
             .separator(),
-            rule("Не ложиться поверх других окон", "openOnly", false),
+            item("Растут сами", #selector(toggleAutoFill), on: settings.autoFill),
+            rule("Слёживаются и подмерзают", "aging"),
+            rule("Курсор смахивает снег", "sweep"),
+            .separator(),
+            sub("Где лежит снег", [
+                rule("На окнах", "onWindows"),
+                rule("На окнах вплотную к строке меню", "onMenuWindows"),
+                rule("На узких окнах", "onNarrow"),
+                rule("На виджетах рабочего стола", "onWidgets"),
+                rule("Внизу экрана", "onFloor"),
+                rule("На Dock", "onDock"),
+                .separator(),
+                rule("Не ложиться поверх других окон", "openOnly", false),
+            ]),
         ]))
-        menu.addItem(sub("Скругление углов окон", [
-            item("Нет (прямой край)", #selector(setRadius(_:)), tag: 0, on: settings.cornerRadius == 0),
-            item("Малое", #selector(setRadius(_:)), tag: 10, on: settings.cornerRadius == 10),
-            item("Среднее", #selector(setRadius(_:)), tag: 18, on: settings.cornerRadius == 18),
-            item("Большое", #selector(setRadius(_:)), tag: 26, on: settings.cornerRadius == 26),
-        ]))
-        menu.addItem(rule("Курсор смахивает снег", "sweep"))
-        menu.addItem(rule("Снег слёживается и подмерзает", "aging"))
         menu.addItem(sub("Человечки", [
             item("Не приходят", #selector(setPeople(_:)), tag: 0, on: settings.people == 0),
             item("Заходят редко", #selector(setPeople(_:)), tag: 1, on: settings.people == 1),
@@ -286,30 +285,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item("Заходят часто", #selector(setPeople(_:)), tag: 3, on: settings.people == 3),
             .separator(),
             rule("Строят лестницы к окнам", "peopleLadders"),
-            rule("Остаются жить (строят иглу)", "peopleStay"),
-            rule("Зимние происшествия (снег с карниза, санки, ёлка)", "peopleEvents"),
-            item("Маленькие", #selector(setPeopleSize(_:)), tag: 2, on: settings.peopleSize == 2),
-            item("Побольше", #selector(setPeopleSize(_:)), tag: 3, on: settings.peopleSize == 3),
+            rule("Остаются жить и строят иглу", "peopleStay"),
+            rule("Санки, ёлка и другие происшествия", "peopleEvents"),
+            .separator(),
+            sub("Размер", [
+                item("Маленькие", #selector(setPeopleSize(_:)), tag: 2, on: settings.peopleSize == 2),
+                item("Побольше", #selector(setPeopleSize(_:)), tag: 3, on: settings.peopleSize == 3),
+            ]),
             .separator(),
             item("Позвать сейчас", #selector(summonPeople)),
             item("Прогнать всех и убрать постройки", #selector(clearPeople)),
         ]))
-        menu.addItem(item("Насыпать снег сейчас", #selector(fillNow)))
-        menu.addItem(item("Убрать весь снег (лопата)", #selector(shovel)))
         menu.addItem(.separator())
-        for hint in ["Ведите курсором по снегу — он смахивается",
-                     "⌃⌥ + зажать мышь — слепить и катать снежок",
-                     "Отпустить на ходу — бросить",
-                     "Опустить шар на шар — снеговик",
-                     "Наст (голубой) колется резким взмахом или снежком",
-                     "Старый снег оседает, под настом растут пустоты",
-                     "Тяжёлый шар продавливает тонкий наст над пустотой",
-                     "Человечка можно сбить быстрым курсором или шаром — он ответит снежком"] {
-            let h = NSMenuItem(title: hint, action: nil, keyEquivalent: "")
-            h.isEnabled = false
-            menu.addItem(h)
-        }
+
+        menu.addItem(sub("Внешний вид", [
+            sub("Размер вокселя", [
+                item("Мелкий", #selector(setVoxel(_:)), tag: 2, on: settings.voxel == 2),
+                item("Средний", #selector(setVoxel(_:)), tag: 3, on: settings.voxel == 3),
+                item("Крупный", #selector(setVoxel(_:)), tag: 4, on: settings.voxel == 4),
+                item("Очень крупный", #selector(setVoxel(_:)), tag: 6, on: settings.voxel == 6),
+            ]),
+            sub("Скругление углов окон", [
+                item("Нет (прямой край)", #selector(setRadius(_:)), tag: 0, on: settings.cornerRadius == 0),
+                item("Малое", #selector(setRadius(_:)), tag: 10, on: settings.cornerRadius == 10),
+                item("Среднее", #selector(setRadius(_:)), tag: 18, on: settings.cornerRadius == 18),
+                item("Большое", #selector(setRadius(_:)), tag: 26, on: settings.cornerRadius == 26),
+            ]),
+        ]))
+        menu.addItem(sub("Как играть", [
+            hint("Ведите курсором по снегу — он смахивается"),
+            hint("⌃⌥ + зажать мышь — слепить и катать снежок"),
+            hint("Отпустить на ходу — бросить"),
+            hint("Опустить шар на шар — снеговик"),
+            .separator(),
+            hint("Наст (голубой) колется резким взмахом или снежком"),
+            hint("Старый снег оседает, под настом растут пустоты"),
+            hint("Тяжёлый шар продавливает тонкий наст над пустотой"),
+            .separator(),
+            hint("Человечка можно сбить быстрым курсором или шаром — он ответит снежком"),
+        ]))
         menu.addItem(.separator())
+
+        menu.addItem(item("О Сугробе", #selector(showAbout)))
         menu.addItem(item("Запускать при входе", #selector(toggleLogin), on: SMAppService.mainApp.status == .enabled))
         menu.addItem(updater.menuItem())
         menu.addItem(item("Выйти из Сугроба", #selector(quit), key: "q"))
@@ -380,6 +397,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             a.runModal()
         }
     }
+
+    @objc private func showAbout() { AboutPanel.show() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }
