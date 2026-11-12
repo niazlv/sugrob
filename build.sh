@@ -34,6 +34,14 @@ if [[ "$1" == "--dist" ]]; then
     # Только предупреждение: нехватка перевода не мешает сборке, приложение покажет английский текст.
     tools/l10n_check.sh || echo "Предупреждение: переводы расходятся с en (см. выше). Сборка продолжается."
 fi
+# Помощник для значков рабочего стола кладётся готовым, байт в байт (Resources/SugrobIcons.app):
+# его подпись не должна меняться от сборки к сборке, иначе у людей слетит «Универсальный доступ».
+# Подпись самого приложения ниже его не трогает. Пересобрать помощника — tools/icons-helper/freeze.sh.
+if [[ -d Resources/SugrobIcons.app ]]; then
+    codesign --verify --strict Resources/SugrobIcons.app 2>/dev/null || { echo "подпись помощника в Resources/SugrobIcons.app повреждена"; exit 1; }
+    mkdir -p "$APP/Contents/Helpers"
+    ditto Resources/SugrobIcons.app "$APP/Contents/Helpers/SugrobIcons.app"
+fi
 xattr -cr "$APP"
 codesign --force --sign - "$APP" 2>/dev/null || { xattr -lr "$APP"; echo "подпись не удалась"; exit 1; }
 if [[ "$1" == "--dist" ]]; then

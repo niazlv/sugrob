@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import UniformTypeIdentifiers
 
 /// Значки рабочего стола: папки, программы и файлы, на которые тоже может лечь снег.
@@ -9,8 +8,13 @@ import UniformTypeIdentifiers
 /// остальное приложение обходится. Поэтому снег на значках выключен, пока его не включат в меню,
 /// а без разрешения просто ничего не делает.
 ///
-/// У Finder берутся только рамка значка и его тип: папка это, программа, диск или файл с таким-то
-/// расширением. Имена не запоминаются и не пишутся в журнал, сами файлы не открываются.
+/// Спрашивает Finder не сам Сугроб, а его помощник — маленькая вложенная программа
+/// (Sources/SugrobIcons, готовый файл в Contents/Helpers). Разрешение macOS привязывает к подписи,
+/// а подпись Сугроба меняется с каждой сборкой; помощник же от версии к версии не меняется ни на
+/// байт, поэтому разрешение, выданное ему, переживает обновления. Помощник отдаёт только рамку
+/// значка и его тип: расширение, папка ли это, диск ли, размер кадра картинки. Имена наружу
+/// не выходят, сами файлы не открываются.
+///
 /// Форма значка — где у него «крыша», на которую ложится снег, — снимается с системной иконки
 /// этого типа. У картинок, видео и PDF Finder рисует вместо иконки миниатюру со своими пропорциями;
 /// их сообщает Spotlight (размер кадра — метаданные, не содержимое). За это macOS один раз спросит
@@ -26,23 +30,34 @@ final class DesktopIcons {
     }
 
     /// Снег на значках включён в меню.
-    var enabled = false { didSet { if !enabled { icons = []; kept = [:]; lastRead = -100; logged = "" } } }
+    var enabled = false {
+        didSet {
+            guard !enabled else { return }
+            helper?.stop()
+            helper = nil
+            icons = []; kept = [:]; logged = ""; waiting = false; wantPrompt = false
+            startedAt = -100
+        }
+    }
     /// Что нашлось при последнем чтении. Меняется только в главном потоке.
     private(set) var icons: [Icon] = []
-    /// Разрешение «Универсальный доступ» выдано (по последней проверке).
-    private(set) var trusted = AXIsProcessTrusted()
+    /// Разрешение «Универсальный доступ» у помощника есть (по его последнему ответу).
+    private(set) var trusted = false
 
-    private let queue = DispatchQueue(label: "sugrob.desktop-icons", qos: .utility)
-    private var busy = false
-    private var lastRead: CFTimeInterval = -100
+    private var helper: IconHelper?
+    private var startedAt: CFTimeInterval = -100
+    private var askedAt: CFTimeInterval = -100
+    private var waiting = false                     // вопрос задан, ответа ещё нет
+    private var wantPrompt = false                  // если доступа нет — показать системный запрос
     private var logged = ""
     private var roofs: [String: Roof?] = [:]        // «крыша» иконки каждого типа, в долях её размера
     private var kept: [Int: (icon: Icon, missed: Int)] = [:]
 
-    /// Системный запрос «разрешить управление компьютером»; сам переключатель включает человек.
-    static func requestAccess() {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+    /// Попросить помощника показать системный запрос «разрешить управление компьютером»;
+    /// сам переключатель включает человек. `onlyIfNeeded` — спросить, только если доступа нет.
+    func requestAccess(onlyIfNeeded: Bool = false) {
+        if onlyIfNeeded { wantPrompt = true; return }
+        running(CACurrentMediaTime(), force: true)?.send("prompt")
     }
 
     static func openSettings() {
@@ -51,28 +66,53 @@ final class DesktopIcons {
         }
     }
 
-    /// Зовётся при каждом опросе окон. Сам Finder опрашивается не чаще раза в секунду и в фоне:
-    /// если он занят и молчит, снег от этого не замирает.
+    /// Зовётся при каждом опросе окон. Помощник опрашивается не чаще раза в секунду; он работает
+    /// отдельным процессом, так что занятый Finder снег не задерживает.
     func refresh(now: CFTimeInterval) {
-        guard enabled, !busy, now - lastRead >= 1 else { return }
-        lastRead = now
-        busy = true
-        queue.async {
-            let (items, ok) = DesktopIcons.hiddenBySystem() ? ([], AXIsProcessTrusted()) : DesktopIcons.read()
-            DispatchQueue.main.async {
-                self.busy = false
-                self.trusted = ok
-                self.icons = self.enabled ? self.steady(self.place(items)) : []
-                let line = ok ? "\(items.count) on the desktop, snow on \(self.icons.count)" : "no Accessibility access"
-                if self.enabled, line != self.logged {
-                    self.logged = line
-                    EventLog.add("icons: " + line)
-                }
-            }
+        guard enabled, let h = running(now) else { return }
+        guard waiting ? now - askedAt > 20 : now - askedAt >= 1 else { return }
+        waiting = h.send("read")
+        askedAt = now
+    }
+
+    private func note(_ line: String) {
+        guard line != logged else { return }
+        logged = line
+        EventLog.add("icons: " + line)
+    }
+
+    /// Помощник, запущенный и живой. Упавшего перезапускаем, но не чаще раза в десять секунд.
+    @discardableResult
+    private func running(_ now: CFTimeInterval, force: Bool = false) -> IconHelper? {
+        if let h = helper, h.alive { return h }
+        guard force || now - startedAt > 10 else { return nil }
+        startedAt = now
+        waiting = false
+        helper = nil
+        guard let h = IconHelper() else {
+            note("the helper is missing or would not start")
+            return nil
+        }
+        h.onReply = { [weak self] lines in self?.reply(lines) }
+        helper = h
+        EventLog.add("icons: helper started, pid \(h.pid)\(h.disclaimed ? "" : " (not on its own: permission will be asked for Sugrob itself)")")
+        return h
+    }
+
+    private func reply(_ lines: [String]) {
+        guard enabled, let head = lines.first?.split(separator: " "), head.first == "icons", head.count >= 2 else { return }
+        waiting = false
+        trusted = head[1] == "1"
+        let items = DesktopIcons.hiddenBySystem() ? [] : DesktopIcons.parse(lines.dropFirst())
+        icons = steady(place(items))
+        note(trusted ? "\(items.count) on the desktop, snow on \(icons.count)" : "no Accessibility access for the helper")
+        if wantPrompt {
+            wantPrompt = false
+            if !trusted { helper?.send("prompt") }
         }
     }
 
-    // MARK: - Чтение у Finder
+    // MARK: - Что рассказал помощник
 
     /// Значок, как его описал Finder: рамка и то, чем он нарисован — иконкой типа (type) или миниатюрой
     /// содержимого (aspect — её ширина к высоте). Ни того, ни другого — форма неизвестна, снег не кладём.
@@ -80,6 +120,25 @@ final class DesktopIcons {
         var frame: CGRect
         var type = ""
         var aspect: CGFloat = 0
+    }
+
+    /// Строки ответа помощника: «x y w h роль расширение папка диск ширина высота ориентация».
+    static func parse<S: Sequence>(_ lines: S) -> [Item] where S.Element == String {
+        let previews = showsPreviews()
+        return lines.compactMap { line in
+            let f = line.split(separator: " ")
+            guard f.count >= 11, let x = Double(f[0]), let y = Double(f[1]), let w = Double(f[2]), let h = Double(f[3]) else { return nil }
+            var item = Item(frame: CGRect(x: x, y: y, width: w, height: h))
+            let ext = f[5] == "-" ? "" : String(f[5])
+            if let t = iconType(ext: ext, directory: f[6] == "1", volume: f[7] == "1", previews: previews) {
+                item.type = t
+            } else if var mw = Double(f[8]), var mh = Double(f[9]), mw > 0, mh > 0 {
+                // снимок, повёрнутый пометкой камеры: размеры записаны лёжа, а показывается он стоя (и наоборот)
+                if let o = Int(f[10]), o >= 0, (o == 1) != (mh > mw) { swap(&mw, &mh) }
+                item.aspect = CGFloat(mw / mh)
+            }
+            return item
+        }
     }
 
     /// Значки на столе выключены в настройках системы («Показывать объекты: на рабочем столе») —
@@ -91,78 +150,18 @@ final class DesktopIcons {
         return d.object(forKey: stage ? "HideDesktop" : "StandardHideDesktopIcons") as? Bool ?? false
     }
 
-    private static func attr(_ e: AXUIElement, _ name: String) -> (value: AnyObject?, error: AXError) {
-        var v: AnyObject?
-        let err = AXUIElementCopyAttributeValue(e, name as CFString, &v)
-        return (err == .success ? v : nil, err)
-    }
-
-    private static func frame(_ e: AXUIElement) -> CGRect? {
-        guard let pv = attr(e, kAXPositionAttribute).value, let sv = attr(e, kAXSizeAttribute).value,
-              CFGetTypeID(pv) == AXValueGetTypeID(), CFGetTypeID(sv) == AXValueGetTypeID() else { return nil }
-        var p = CGPoint.zero, s = CGSize.zero
-        guard AXValueGetValue(pv as! AXValue, .cgPoint, &p), AXValueGetValue(sv as! AXValue, .cgSize, &s) else { return nil }
-        return CGRect(origin: p, size: s)
-    }
-
-    private static func finder() -> AXUIElement? {
-        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first else { return nil }
-        AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.5)      // занятый Finder не ждём дольше
-        return AXUIElementCreateApplication(app.processIdentifier)
-    }
-
-    /// Что Finder показывает на столе и разрешено ли нам спрашивать. Разрешение проверяется самим
-    /// запросом: отметка `AXIsProcessTrusted()` в уже запущенном процессе обновляется не сразу.
-    ///
-    /// Рабочий стол у Finder — не окно, а отдельная область прямо в приложении (AXScrollArea → AXGroup),
-    /// значки в ней — картинки (AXImage) с рамкой ровно по размеру значка. Обычные окна не трогаем.
-    private static func read() -> (items: [Item], trusted: Bool) {
-        guard let app = finder() else { return ([], AXIsProcessTrusted()) }
-        let top = attr(app, kAXChildrenAttribute)
-        if top.error == .apiDisabled { return ([], false) }
-        let preview = showsPreviews()
-        // точки монтирования: диск на столе Finder рисует значком диска, где бы тот ни был подключён
-        let mounts = Set((FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: nil, options: []) ?? [])
-            .map { $0.standardizedFileURL.path })
-        var out: [Item] = []
-        func collect(_ e: AXUIElement, _ depth: Int) {
-            if depth > 4 || out.count > 600 { return }
-            if (attr(e, kAXRoleAttribute).value as? String) == kAXImageRole {
-                guard let f = frame(e), f.width >= 12, f.height >= 12, f.width <= 300, f.height <= 300 else { return }
-                var item = Item(frame: f)
-                if let url = attr(e, kAXURLAttribute).value as? URL {
-                    if let t = iconType(of: url, previews: preview, mounts: mounts) { item.type = t }
-                    else { item.aspect = thumbnailAspect(url) }
-                }
-                out.append(item)
-                return
-            }
-            for c in attr(e, kAXChildrenAttribute).value as? [AXUIElement] ?? [] { collect(c, depth + 1) }
-        }
-        for area in top.value as? [AXUIElement] ?? [] {
-            let role = attr(area, kAXRoleAttribute).value as? String ?? ""
-            if role != kAXWindowRole && role != kAXMenuBarRole { collect(area, 0) }
-        }
-        return (out, top.error == .success || AXIsProcessTrusted())
-    }
-
-    /// Настройки вида рабочего стола в Finder («Показать параметры вида»).
-    private static func viewSettings() -> [String: Any] {
+    /// Показывает ли Finder на столе миниатюры содержимого («Показать параметры вида»).
+    private static func showsPreviews() -> Bool {
         let view = UserDefaults(suiteName: "com.apple.finder")?.dictionary(forKey: "DesktopViewSettings")
-        return view?["IconViewSettings"] as? [String: Any] ?? [:]
+        let icon = view?["IconViewSettings"] as? [String: Any]
+        return (icon?["showIconPreview"] as? NSNumber)?.boolValue ?? true
     }
 
-    private static func showsPreviews() -> Bool { (viewSettings()["showIconPreview"] as? NSNumber)?.boolValue ?? true }
-
-    /// Чьей иконкой Finder рисует этот объект. Из адреса берутся только расширение и то, папка ли это.
-    /// nil — вместо иконки там миниатюра содержимого (или что-то, чью форму не угадать).
-    static func iconType(of url: URL, previews: Bool, mounts: Set<String> = []) -> String? {
-        let ext = url.pathExtension.lowercased()
-        if url.hasDirectoryPath {
-            let parts = url.standardizedFileURL.pathComponents
-            if parts.count <= 1 || (parts.count == 3 && parts[1] == "Volumes") || mounts.contains(url.standardizedFileURL.path) {
-                return UTType.volume.identifier
-            }
+    /// Чьей иконкой Finder рисует этот объект. nil — вместо иконки там миниатюра содержимого
+    /// (или что-то, чью форму не угадать).
+    static func iconType(ext: String, directory: Bool, volume: Bool, previews: Bool) -> String? {
+        if directory {
+            if volume { return UTType.volume.identifier }
             if ext == "app" { return UTType.applicationBundle.identifier }
             // папка с точкой в имени — всё ещё папка; пакет (проект, библиотека) рисуется иконкой своего типа
             if !ext.isEmpty, let t = UTType(filenameExtension: ext), !t.isDynamic, t.conforms(to: .package) { return t.identifier }
@@ -173,33 +172,6 @@ final class DesktopIcons {
                                .html, .webArchive, .font, .diskImage, .aliasFile, .symbolicLink]
         if previews && drawn.contains(where: { t.conforms(to: $0) }) { return nil }
         return t.identifier
-    }
-
-    /// Пропорции миниатюры (ширина к высоте) по сведениям Spotlight: размер кадра у картинки и видео,
-    /// размер страницы у PDF. 0 — неизвестно (файл не проиндексирован, доступ к папке не дали, тип не тот).
-    /// Ответы помнятся несколько минут — по хешу пути, сам путь не хранится.
-    private static var aspects: [Int: CGFloat] = [:]
-    private static var aspectsAt: CFTimeInterval = 0
-    private static func thumbnailAspect(_ url: URL) -> CGFloat {
-        let now = CACurrentMediaTime()
-        if now - aspectsAt > 300 || aspects.count > 2000 { aspects.removeAll(); aspectsAt = now }
-        let key = url.path.hashValue
-        if let known = aspects[key] { return known }
-        var aspect: CGFloat = 0
-        if let t = UTType(filenameExtension: url.pathExtension.lowercased()),
-           t.conforms(to: .image) || t.conforms(to: .audiovisualContent) || t.conforms(to: .pdf),
-           let item = MDItemCreateWithURL(nil, url as CFURL) {
-            func num(_ k: String) -> CGFloat { CGFloat((MDItemCopyAttribute(item, k as CFString) as? NSNumber)?.doubleValue ?? 0) }
-            var w = num("kMDItemPixelWidth"), h = num("kMDItemPixelHeight")
-            if w <= 0 || h <= 0 { w = num("kMDItemPageWidth"); h = num("kMDItemPageHeight") }
-            if w > 0 && h > 0 {
-                // снимок, повёрнутый пометкой камеры: размеры записаны лёжа, а показывается он стоя (и наоборот)
-                if let o = MDItemCopyAttribute(item, "kMDItemOrientation" as CFString) as? NSNumber, (o.intValue == 1) != (h > w) { swap(&w, &h) }
-                aspect = w / h
-            }
-        }
-        aspects[key] = aspect
-        return aspect
     }
 
     // MARK: - Форма значка
@@ -293,20 +265,40 @@ final class DesktopIcons {
 
     // MARK: - Отладка
 
-    /// `Sugrob --ax-dump <файл>`: что Finder рассказывает о рабочем столе — роли, рамки и типы, без имён.
-    /// Запускать через `open -n Sugrob.app --args --ax-dump <файл>`: разрешение выдаётся приложению,
-    /// а не тому, кто запустил его из терминала.
+    /// `Sugrob --ax-dump <файл>`: что помощник рассказывает о рабочем столе — роли, рамки и типы, без
+    /// имён. Если доступа ещё нет, показывает системный запрос и ждёт до трёх минут.
     static func dump(to path: String) -> Int32 {
-        var out = "trusted: \(AXIsProcessTrusted())\n"
+        var out = ""
         func flush() { try? out.write(toFile: path, atomically: true, encoding: .utf8) }
-        if !AXIsProcessTrusted() {
-            requestAccess()
+        let answers = DispatchQueue(label: "sugrob.icons.dump")
+        guard let h = IconHelper(queue: answers) else {
+            out = "the helper is missing: \(IconHelper.executable)\n"
             flush()
-            for _ in 0..<180 where !read().trusted { Thread.sleep(forTimeInterval: 1) }
+            return 1
         }
+        let got = DispatchSemaphore(value: 0)
+        var last: [String] = []
+        h.onReply = { lines in last = lines; got.signal() }
+        func ask(_ cmd: String, timeout: Double = 30) -> [String] {
+            guard h.send(cmd), got.wait(timeout: .now() + timeout) == .success else { return [] }
+            return answers.sync { last }
+        }
+        var pong = ask("ping")
+        out += "helper pid \(h.pid), responsible for itself: \(h.disclaimed), says: \(pong.first ?? "nothing")\n"
+        if pong.first?.hasSuffix(" 0") == true {
+            _ = ask("prompt")
+            flush()
+            for _ in 0..<180 where pong.first?.hasSuffix(" 1") != true {
+                Thread.sleep(forTimeInterval: 1)
+                pong = ask("ping")
+            }
+            out += "after waiting: \(pong.first ?? "nothing")\n"
+        }
+        out += ask("tree limit=40").joined(separator: "\n") + "\n"
         let t = CACurrentMediaTime()
-        let (items, ok) = read()
-        out += "read(): trusted \(ok), \(items.count) icons in \(Int((CACurrentMediaTime() - t) * 1000)) ms, "
+        let answer = ask("read", timeout: 240)      // первый раз может ждать ответа на запрос доступа к папке
+        let items = parse(answer.dropFirst())
+        out += "read: \(answer.first ?? "nothing") in \(Int((CACurrentMediaTime() - t) * 1000)) ms, "
             + "previews \(showsPreviews()), hidden by system \(hiddenBySystem())\n"
         let placed = shared.place(items)
         out += "snow on \(placed.count)\n"
@@ -320,7 +312,137 @@ final class DesktopIcons {
         for i in placed {
             out += String(format: "ledge %.1f %.1f %.1f %.1f\n", i.rect.minX, i.rect.minY, i.rect.width, i.rect.height)
         }
+        h.stop()
         flush()
-        return ok ? 0 : 1
+        return answer.first?.hasPrefix("icons 1") == true ? 0 : 1
+    }
+}
+
+/// Помощник (Sources/SugrobIcons): запуск и разговор строками через его стандартный ввод и вывод.
+///
+/// Запускается он так, чтобы отвечать за себя сам: иначе macOS записала бы его запросы на счёт
+/// Сугроба, и разрешение снова зависело бы от подписи основной программы.
+final class IconHelper {
+    static var executable: String {
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/SugrobIcons.app/Contents/MacOS/SugrobIcons").path
+    }
+
+    private(set) var pid: pid_t = 0
+    private(set) var alive = false
+    /// Система согласилась считать помощника отдельной программой (а не частью Сугроба).
+    private(set) var disclaimed = false
+    /// Ответ целиком: одна строка или блок от заголовка до `end` (без самого `end`).
+    var onReply: (([String]) -> Void)?
+
+    private var toChild: FileHandle?
+    private var fromChild: FileHandle?
+    private var watcher: DispatchSourceProcess?
+    private let io = DispatchQueue(label: "sugrob.icon-helper")
+    private let answers: DispatchQueue
+    private var pending = Data()
+    private var block: [String]?
+
+    /// «Отвечает за себя сам» — недокументированная, но давняя настройка запуска процесса; ею
+    /// пользуются браузеры и терминалы. Нет её — помощник всё равно работает, но разрешение
+    /// система спросит на имя Сугроба.
+    private static let disclaim: (@convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32)? = {
+        guard let s = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "responsibility_spawnattrs_setdisclaim") else { return nil }
+        return unsafeBitCast(s, to: (@convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32).self)
+    }()
+
+    init?(queue: DispatchQueue = .main) {
+        answers = queue
+        let path = IconHelper.executable
+        guard FileManager.default.isExecutableFile(atPath: path) else { return nil }
+        // Скачанное из сети приложение помечено «карантином», и пометка стоит на каждом его файле.
+        // Сам Сугроб человек уже разрешил запускать; помощник — его часть (он под той же подписью),
+        // так что отдельного вопроса про него быть не должно. Не вышло снять — запускаем как есть.
+        var dir = URL(fileURLWithPath: path)
+        for _ in 0..<4 {
+            removexattr(dir.path, "com.apple.quarantine", 0)
+            dir.deleteLastPathComponent()           // …/MacOS, …/Contents, …/SugrobIcons.app
+        }
+        signal(SIGPIPE, SIG_IGN)            // помощник мог выйти: запись в его ввод не должна убивать Сугроб
+        var toPipe: [Int32] = [0, 0], fromPipe: [Int32] = [0, 0]
+        guard pipe(&toPipe) == 0 else { return nil }
+        guard pipe(&fromPipe) == 0 else { close(toPipe[0]); close(toPipe[1]); return nil }
+
+        var actions: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&actions)
+        posix_spawn_file_actions_adddup2(&actions, toPipe[0], 0)
+        posix_spawn_file_actions_adddup2(&actions, fromPipe[1], 1)
+        posix_spawn_file_actions_addinherit_np(&actions, 2)
+        var attrs: posix_spawnattr_t?
+        posix_spawnattr_init(&attrs)
+        posix_spawnattr_setflags(&attrs, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))     // остальные наши файлы ему не достаются
+        disclaimed = IconHelper.disclaim.map { $0(&attrs, 1) == 0 } ?? false
+        var child: pid_t = 0
+        let argv: [UnsafeMutablePointer<CChar>?] = [strdup(path), nil]
+        let env: [UnsafeMutablePointer<CChar>?] = ProcessInfo.processInfo.environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        let rc = posix_spawn(&child, path, &actions, &attrs, argv, env)
+        free(argv[0])
+        env.forEach { free($0) }
+        posix_spawn_file_actions_destroy(&actions)
+        posix_spawnattr_destroy(&attrs)
+        close(toPipe[0])
+        close(fromPipe[1])
+        guard rc == 0 else { close(toPipe[1]); close(fromPipe[0]); return nil }
+
+        pid = child
+        alive = true
+        toChild = FileHandle(fileDescriptor: toPipe[1], closeOnDealloc: true)
+        let from = FileHandle(fileDescriptor: fromPipe[0], closeOnDealloc: true)
+        fromChild = from
+        from.readabilityHandler = { [weak self] h in
+            let data = h.availableData
+            if data.isEmpty { h.readabilityHandler = nil }
+            self?.io.async { self?.feed(data) }
+        }
+        let w = DispatchSource.makeProcessSource(identifier: child, eventMask: .exit, queue: io)
+        w.setEventHandler { [weak self] in
+            var status: Int32 = 0
+            waitpid(child, &status, 0)
+            self?.alive = false
+            self?.watcher?.cancel()
+        }
+        w.resume()
+        watcher = w
+    }
+
+    @discardableResult
+    func send(_ line: String) -> Bool {
+        guard alive, let h = toChild else { return false }
+        do { try h.write(contentsOf: Data((line + "\n").utf8)); return true } catch { alive = false; return false }
+    }
+
+    /// Закрыть помощнику ввод — он выходит сам. То же случится, если Сугроб просто завершится.
+    func stop() {
+        guard alive else { return }
+        alive = false
+        try? toChild?.close()
+        toChild = nil
+        kill(pid, SIGTERM)
+    }
+
+    private func feed(_ data: Data) {
+        if data.isEmpty { alive = false; return }
+        pending.append(data)
+        while let nl = pending.firstIndex(of: 0x0A) {
+            let line = String(decoding: pending[pending.startIndex..<nl], as: UTF8.self)
+            pending.removeSubrange(pending.startIndex...nl)
+            if block != nil {
+                if line == "end" { deliver(block!); block = nil }
+                else if block!.count < 5000 { block!.append(line) }
+            } else if line.hasPrefix("icons ") || line.hasPrefix("tree ") {
+                block = [line]
+            } else {
+                deliver([line])
+            }
+        }
+        if pending.count > 1 << 20 { pending.removeAll() }
+    }
+
+    private func deliver(_ lines: [String]) {
+        answers.async { [weak self] in self?.onReply?(lines) }
     }
 }

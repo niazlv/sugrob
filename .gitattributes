@@ -1,0 +1,2 @@
+# Замороженный помощник: файлы должны оставаться байт в байт (см. tools/icons-helper/freeze.sh)
+Resources/SugrobIcons.app/** -text -diff

@@ -457,9 +457,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settings.toggle(key, key != "openOnly" && key != "onIcons")
         if key == "onIcons" {
             // Места значков знает только Finder и отдаёт их через «Универсальный доступ». Включили галочку —
-            // система спросит разрешение; пока его нет, снег на значки просто не ложится.
+            // система спросит разрешение (на имя помощника, «Sugrob Desktop Icons»); пока его нет,
+            // снег на значки просто не ложится.
             DesktopIcons.shared.enabled = settings.flag(key, false)
-            if DesktopIcons.shared.enabled && !AXIsProcessTrusted() { DesktopIcons.requestAccess() }
+            if DesktopIcons.shared.enabled { DesktopIcons.shared.requestAccess(onlyIfNeeded: true) }
         }
         if key == "onFloor" && !settings.flag(key) {        // выключили низ экрана — снег оттуда убираем
             for o in overlays { _ = o.sim.extractFloor(x0: 0, x1: o.sim.wPt) }
@@ -472,7 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func grantIcons() {
-        DesktopIcons.requestAccess()
+        DesktopIcons.shared.requestAccess()
         DesktopIcons.openSettings()
     }
 

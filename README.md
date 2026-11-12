@@ -58,7 +58,8 @@ gets in the way of work.
 - **Snow on desktop icons, if you ask for it.** Folders, apps and files on the desktop can wear
   caps too, but only Finder knows where they are, and it shares that through Accessibility. So
   the option is off until you turn it on yourself (Snowdrifts → Where Snow Settles), and only then
-  does macOS ask for permission. The app takes each icon's frame and kind; names are not kept and
+  does macOS ask for permission, in the name of “Sugrob Desktop Icons”: a small helper inside the
+  app that does the talking to Finder. It takes each icon's frame and kind; names are not kept and
   files are not opened. Pictures, videos and PDFs also need their proportions, which come from
   Spotlight, and for that macOS separately asks for access to the Desktop folder. Decline, and
   snow settles on everything except thumbnails.
@@ -170,9 +171,15 @@ headless; GitHub Actions runs the same stress test on every push:
   and URL; only the extension and whether it is a folder are taken from the URL. The icon's “roof”
   is measured on the system icon for that type (`NSWorkspace.icon(for:)`): the widest level stretch
   of its top edge. Finder fits a thumbnail into a square 7/8 the icon size, and its proportions
-  come from Spotlight metadata (`kMDItemPixelWidth/Height`). The app is signed without a developer
-  certificate, so after an update macOS treats it as a different program and Accessibility access
-  has to be granted again (a menu item that opens the settings appears).
+  come from Spotlight metadata (`kMDItemPixelWidth/Height`).
+- **The helper and permissions.** macOS ties Accessibility access to a program's signature, and
+  Sugrob has no developer certificate: its signature is a hash of the binary and changes with every
+  build. So that access does not have to be granted again after every update, Finder is queried
+  not by Sugrob but by a helper, `Contents/Helpers/SugrobIcons.app` (source in
+  `Sources/SugrobIcons`). It runs as a program of its own and never changes by a single byte: every
+  build ships the same prebuilt file from `Resources/SugrobIcons.app`. All it can do is report the
+  frames and kinds of desktop icons; everything else lives in Sugrob itself. It can be rebuilt with
+  `tools/icons-helper/freeze.sh`, but that resets the permission for everyone.
 - **Video.** A player asks the system to keep the display awake while it plays; the list of such
   requests (`IOPMCopyAssertionsByProcess`) is available without any permission. The visible part of
   that app's windows is blanked at the end of each frame. The cap on the window itself and snow on
