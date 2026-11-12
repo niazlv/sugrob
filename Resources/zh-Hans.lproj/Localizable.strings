@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "紧贴菜单栏的窗口上";
 "menu.where.narrow" = "窄窗口上";
 "menu.where.widgets" = "桌面小组件上";
+"menu.where.icons" = "桌面图标上（需要“辅助功能”权限）";
+"menu.where.icons.grant" = "在系统设置中允许…";
 "menu.where.floor" = "屏幕底部";
 "menu.where.dock" = "程序坞上";
 "menu.where.openOnly" = "不落在其他窗口上方";
+"menu.where.offVideo" = "不遮挡正在播放的视频";
 
 /* Menu: little people */
 "menu.people" = "小人";

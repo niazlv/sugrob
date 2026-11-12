@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "На окнах вплотную к строке меню";
 "menu.where.narrow" = "На узких окнах";
 "menu.where.widgets" = "На виджетах рабочего стола";
+"menu.where.icons" = "На значках рабочего стола (нужен «Универсальный доступ»)";
+"menu.where.icons.grant" = "Разрешить в Системных настройках…";
 "menu.where.floor" = "Внизу экрана";
 "menu.where.dock" = "На Dock";
 "menu.where.openOnly" = "Не ложиться поверх других окон";
+"menu.where.offVideo" = "Не сыпать поверх видео";
 
 /* Menu: little people */
 "menu.people" = "Человечки";

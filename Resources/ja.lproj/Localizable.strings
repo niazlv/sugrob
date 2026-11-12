@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "メニューバーに接するウインドウの上";
 "menu.where.narrow" = "幅の狭いウインドウの上";
 "menu.where.widgets" = "デスクトップのウィジェットの上";
+"menu.where.icons" = "デスクトップのアイコンの上（「アクセシビリティ」の許可が必要）";
+"menu.where.icons.grant" = "システム設定で許可…";
 "menu.where.floor" = "画面の下端";
 "menu.where.dock" = "Dockの上";
 "menu.where.openOnly" = "ほかのウインドウの上には積もらない";
+"menu.where.offVideo" = "再生中のビデオには降らせない";
 
 /* Menu: little people */
 "menu.people" = "小人たち";

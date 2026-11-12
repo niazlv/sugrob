@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "On Windows Flush with the Menu Bar";
 "menu.where.narrow" = "On Narrow Windows";
 "menu.where.widgets" = "On Desktop Widgets";
+"menu.where.icons" = "On Desktop Icons (Needs Accessibility Access)";
+"menu.where.icons.grant" = "Allow in System Settings…";
 "menu.where.floor" = "At the Bottom of the Screen";
 "menu.where.dock" = "On the Dock";
 "menu.where.openOnly" = "Don’t Settle Over Other Windows";
+"menu.where.offVideo" = "Don’t Snow Over Playing Video";
 
 /* Menu: little people */
 "menu.people" = "Little People";

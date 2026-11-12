@@ -33,7 +33,8 @@ struct Particle {
     var hard: UInt8 = 0  // слежалость снега, из которого ком (см. Sim.hard)
 }
 
-/// Горизонтальная опора: верх окна (kind 1) или Dock (kind 2). Координаты в пунктах экрана.
+/// Горизонтальная опора: верх окна (kind 1), Dock (kind 2) или значок рабочего стола (kind 3).
+/// Координаты в пунктах экрана.
 struct Ledge {
     var y: Float
     var x0: Float
@@ -43,6 +44,7 @@ struct Ledge {
     var ox: Float = 0      // левый край окна: от него отсчитывается рисунок бугров, чтобы он ехал с окном
     var wr: Float = .infinity   // правый край окна
     var r: Float = 0       // радиус скругления углов окна: у краёв опора идёт по дуге, а не по прямой
+    var cap: Float = 0     // предел высоты шапки, pt; 0 — обычный для такой опоры (окно 20, Dock 14)
 }
 
 /// Всё, что лежит на одном рабочем столе: при переключении столов снег у каждого свой.
@@ -439,7 +441,7 @@ final class Sim {
         for s in segs {
             guard let (row, c0, c1) = ledgeCells(s) else { continue }
             if s.kind == 2 { dock.append((c0, c1)) }
-            make(row: row, rows: (c0...c1).map { Int32(colRow(s, $0)) }, c0: c0, c1: c1, base: s.kind == 2 ? 14 : 20, phase: Float(abs(s.win) % 997) * 0.17,
+            make(row: row, rows: (c0...c1).map { Int32(colRow(s, $0)) }, c0: c0, c1: c1, base: s.cap > 0 ? s.cap : (s.kind == 2 ? 14 : 20), phase: Float(abs(s.win) % 997) * 0.17,
                  ox: s.ox, x0: s.x0, x1: s.x1, taper: true, own: s.win)
         }
         make(row: H, rows: [Int32](repeating: Int32(H), count: W), c0: 0, c1: W - 1, base: 30, phase: 1.3, ox: 0, x0: 0, x1: wPt, taper: false, own: -2)
@@ -1361,7 +1363,7 @@ final class Sim {
         var n = 0
         while yy < H && snow[yy * W + x] != 0 && n < 96 { yy += 1; n += 1 }
         if yy >= H { return false }
-        return ledge[yy * W + x] == 1
+        return ledge[yy * W + x] == 1 || ledge[yy * W + x] == 3
     }
 
     private func stepParticles(_ dt: Float) {
@@ -1444,7 +1446,7 @@ final class Sim {
                     if snow[idx] != 0 {
                         hit = p.ghost <= 0 && !(p.passer && pileOnWindow(ccx, ccy))
                     } else if ledge[idx] != 0 && ccy > pcy {
-                        hit = !(p.passer && ledge[idx] == 1)
+                        hit = !(p.passer && (ledge[idx] == 1 || ledge[idx] == 3))
                     } else if mask[idx] != 0 {
                         hit = p.ghost <= 0          // стоящий шар
                         if hit && p.kind == 0 {

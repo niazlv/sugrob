@@ -4,7 +4,9 @@ import ServiceManagement
 
 /// Короткий журнал событий со слоями снега: ~/Library/Logs/Sugrob.log (обрезается при запуске).
 enum EventLog {
-    private static let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sugrob.log")
+    /// Пробная копия, запущенная рядом с основной, пишет в свой файл: SUGROB_LOG=/путь/к/файлу.
+    private static let url = ProcessInfo.processInfo.environment["SUGROB_LOG"].map { URL(fileURLWithPath: $0) }
+        ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sugrob.log")
     private static let start = CACurrentMediaTime()
     private static var lines = 0
     static func reset() { try? "".write(to: url, atomically: true, encoding: .utf8) }
@@ -31,7 +33,8 @@ final class Settings {
     func toggle(_ key: String, _ def: Bool = true) { d.set(!flag(key, def), forKey: key) }
     var rules: SnowRules {
         SnowRules(windows: flag("onWindows"), menuWindows: flag("onMenuWindows"), narrow: flag("onNarrow"),
-                  widgets: flag("onWidgets"), dock: flag("onDock"), radius: CGFloat(cornerRadius))
+                  widgets: flag("onWidgets"), dock: flag("onDock"), radius: CGFloat(cornerRadius),
+                  offVideo: flag("offVideo"), icons: flag("onIcons", false))
     }
     /// Радиус углов окон. В macOS 26 окна скруглены сильнее, чем раньше.
     var cornerRadius: Int {
@@ -82,9 +85,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastCleanup = CACurrentMediaTime()
     private var pending: [Int: (key: UInt64, since: CFTimeInterval)] = [:]
     private var lastKey: [Int: UInt64] = [:]
+    /// У каждого полноэкранного стола свой слой снега, который едет вместе с ним. Если система такой слой
+    /// в чужой полноэкранный стол не пускает, остаётся прежний вариант: один слой на все такие столы.
+    private var fullscreenPerSpace = true
+    private var keySince: [Int: CFTimeInterval] = [:]
+    private var layersChanged = false   // слой создан или вернулся на экран: окна ему нужно показать сразу
+    private var seenWidgets = -1        // для журнала: сколько виджетов видели и кто показывал видео
+    private var seenVideo = ""
+    private var censusAt: CFTimeInterval = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         EventLog.reset()
+        let info = Bundle.main.infoDictionary
+        EventLog.add("Sugrob \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?")), macOS \(ProcessInfo.processInfo.operatingSystemVersionString), language \(Locale.preferredLanguages.first ?? "?"), screens \(NSScreen.screens.map { "\(Int($0.frame.width))x\(Int($0.frame.height))" })")
         device = MTLCreateSystemDefaultDevice()
         guard device != nil else {
             let a = NSAlert()
@@ -105,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
+        DesktopIcons.shared.enabled = settings.flag("onIcons", false)
         Wind.linked = true          // буран один на все экраны
         buildOverlays()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
@@ -129,19 +143,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func ensureOverlays() {
         guard let device else { return }
         let now = CACurrentMediaTime()
+        // Стол закрыли (или приложение вышло из полноэкранного режима): его слой система переносит на
+        // соседний стол. Прячем сразу, а если стол так и не вернулся — закрываем.
+        if let spaces = allSpaces() {
+            for o in overlays where !o.isShared {
+                o.setOrphaned(!spaces.contains(o.spaceId), now: now)
+                if let t = o.orphanedAt, now - t > 3 {
+                    EventLog.add("closing layer \(o.spaceId): its space is gone")
+                    o.close()
+                    overlays.removeAll { $0 === o }
+                }
+            }
+        }
         for (si, s) in NSScreen.screens.enumerated() {
             let info = spaceInfo(of: s)
-            // обычный стол — свой слой; полноэкранные приложения — один общий на экран
-            let key: UInt64 = info.id == 0 ? 0 : (info.fullscreen ? Overlay.fullscreenKey : info.id)
+            // у каждого стола, обычного и полноэкранного, свой слой
+            let key: UInt64 = info.id == 0 ? 0 : (info.fullscreen && !fullscreenPerSpace ? Overlay.fullscreenKey : info.id)
             let mine = overlays.filter { $0.screen === s }
             if lastKey[si] != key {
                 EventLog.add("screen \(si): space \(info.id) fullscreen=\(info.fullscreen) -> layer key \(key == Overlay.fullscreenKey ? "FS" : String(key)); layers: \(mine.map { ($0.spaceId == Overlay.fullscreenKey ? "FS" : String($0.spaceId)) + ($0.panel.isOnActiveSpace ? "*" : "") })")
                 lastKey[si] = key
+                keySince[si] = now
             }
             if let cur = mine.first(where: { $0.spaceId == key }) {
                 for o in mine where o !== cur { o.suspend() }
+                if !cur.active { layersChanged = true }
                 cur.resume(hidden: paused)
                 pending[si] = nil
+                // Слой полноэкранного стола должен оказаться именно на нём. Не оказался — система так
+                // не умеет: дальше обходимся одним общим слоем на все полноэкранные приложения.
+                // Проверяем, когда стол уже секунду как на экране, и верим только устойчивому «нет»:
+                // сразу после перелистывания сведения о том, на каком столе окно, могут запаздывать.
+                if !cur.settled, !cur.isShared, now - cur.createdAt > 1, now - (keySince[si] ?? now) > 1 {
+                    if cur.panel.isOnActiveSpace || !cur.fullscreen {
+                        cur.settled = true
+                        if cur.fullscreen { EventLog.add("screen \(si): layer \(key) lives on its full-screen space") }
+                    } else {
+                        cur.misses += 1
+                        if cur.misses > 30 {
+                            EventLog.add("screen \(si): layer \(key) did not land on its full-screen space, falling back to one shared layer")
+                            dropFullscreenLayers()
+                        }
+                    }
+                }
             } else {
                 for o in mine { o.suspend() }
                 if key != 0 && key != Overlay.fullscreenKey {
@@ -152,10 +196,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
                 pending[si] = nil
                 guard let o = Overlay(screen: s, device: device, cell: Float(settings.voxel),
-                                      cfg: settings.simConfig(), spaceId: key) else { continue }
+                                      cfg: settings.simConfig(), spaceId: key, fullscreen: info.fullscreen) else { continue }
                 o.rules = settings.rules
                 o.freshFill = now - launchedAt > 30          // на столах, открытых позже, снег уже лежит
                 overlays.append(o)
+                layersChanged = true
                 o.show()
                 if paused { o.setHidden(true) }
                 spaceSince = now
@@ -169,6 +214,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 var stale = own.filter { $0.panel.isOnActiveSpace }
                 let idle = own.filter { !$0.panel.isOnActiveSpace }.sorted { $0.leftAt < $1.leftAt }
                 if idle.count > 8 { stale += idle.prefix(idle.count - 8) }
+                // Слой полноэкранного стола, который виден на чужом столе, хотя его собственный на месте:
+                // система показывает такие слои везде, значит, свой слой на каждый стол здесь не годится.
+                let spaces = allSpaces()
+                if own.contains(where: { $0.fullscreen && $0.panel.isOnActiveSpace && $0.orphanedAt == nil
+                                         && spaces?.contains($0.spaceId) == true }) {
+                    EventLog.add("screen \(si): a full-screen layer showed up on another space, falling back to one shared layer")
+                    dropFullscreenLayers()
+                    continue
+                }
                 for o in stale {
                     EventLog.add("screen \(si): closing stray layer \(o.spaceId)")
                     o.close()
@@ -176,6 +230,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         }
+    }
+
+    /// Отказ от отдельных слоёв для полноэкранных столов: закрываем их, дальше будет один общий.
+    private func dropFullscreenLayers() {
+        fullscreenPerSpace = false
+        for o in overlays where o.fullscreen && !o.isShared { o.close() }
+        overlays.removeAll { $0.fullscreen && !$0.isShared }
+        lastKey = [:]
     }
 
     @objc private func screensChanged() { buildOverlays() }
@@ -193,13 +255,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // у нижнего края может выезжать Dock — там тоже следим часто
         let m = NSEvent.mouseLocation
         let nearDock = overlays.contains { $0.active && $0.screen.frame.contains(m) && m.y < $0.screen.frame.minY + 170 }
-        if dragging || nearDock || pollTick % 5 == 0 { pollWindows() }
+        if dragging || nearDock || layersChanged || pollTick % 5 == 0 { pollWindows() }
     }
 
     private func pollWindows() {
+        layersChanged = false
         if paused || overlays.isEmpty { return }
-        let (wins, dock, own) = currentWindows()
-        for o in overlays where o.active { o.updateWindows(wins, dockOnscreen: dock, own: own) }
+        var snap = currentWindows(video: settings.flag("offVideo"))
+        logSeen(snap)
+        // значки рабочего стола — позади всех окон и виджетов, поэтому в конце списка
+        DesktopIcons.shared.refresh(now: CACurrentMediaTime())
+        for ic in DesktopIcons.shared.icons {
+            snap.wins.append(WinInfo(id: ic.id, icon: true, iconSize: ic.size, rect: ic.rect))
+        }
+        for o in overlays where o.active {
+            o.updateWindows(snap.wins, dockOnscreen: snap.dock, own: snap.own, floating: snap.floating)
+        }
+    }
+
+    /// В журнал — что приложение видит на экране: нашлись ли виджеты, кто показывает видео. Пишутся
+    /// только перемены. И раз в запуск — кому принадлежат окна особых слоёв: по этому списку видно,
+    /// если в другой системе виджеты или Dock устроены иначе.
+    private func logSeen(_ snap: WindowSnapshot) {
+        if snap.widgets > seenWidgets {
+            seenWidgets = snap.widgets
+            EventLog.add("sees: \(snap.widgets) desktop widgets, \(snap.wins.count - snap.widgets) windows, dock \(snap.dock ? "shown" : "hidden")")
+        }
+        let video = snap.videoApps.sorted().joined(separator: ", ") + (snap.floating.isEmpty ? "" : " +\(snap.floating.count) floating")
+        if video != seenVideo {
+            seenVideo = video
+            EventLog.add("video: " + (video.isEmpty ? "none" : video))
+        }
+        if censusAt == 0, CACurrentMediaTime() - launchedAt > 3 {
+            censusAt = CACurrentMediaTime()
+            EventLog.add("special layers: " + windowCensus())
+        }
     }
 
     private func applyConfig() {
@@ -258,6 +348,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             rule(tr("menu.storms"), "storms"),
             item(tr("menu.stormNow"), #selector(stormNow)),
         ]))
+        var places = [
+            rule(tr("menu.where.windows"), "onWindows"),
+            rule(tr("menu.where.menuWindows"), "onMenuWindows"),
+            rule(tr("menu.where.narrow"), "onNarrow"),
+            rule(tr("menu.where.widgets"), "onWidgets"),
+            rule(tr("menu.where.icons"), "onIcons", false),
+        ]
+        // галочка стоит, а разрешения нет (не выдали или сбросилось после обновления) — пункт, который ведёт в настройки
+        if settings.flag("onIcons", false) && !DesktopIcons.shared.trusted {
+            let grant = item(tr("menu.where.icons.grant"), #selector(grantIcons))
+            grant.indentationLevel = 1
+            places.append(grant)
+        }
+        places += [
+            rule(tr("menu.where.floor"), "onFloor"),
+            rule(tr("menu.where.dock"), "onDock"),
+            .separator(),
+            rule(tr("menu.where.openOnly"), "openOnly", false),
+            rule(tr("menu.where.offVideo"), "offVideo"),
+        ]
         menu.addItem(sub(tr("menu.drifts"), [
             item(tr("menu.drifts.low"), #selector(setDepth(_:)), tag: 0, on: settings.depth == 0),
             item(tr("menu.drifts.medium"), #selector(setDepth(_:)), tag: 1, on: settings.depth == 1),
@@ -267,16 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             rule(tr("menu.drifts.aging"), "aging"),
             rule(tr("menu.drifts.sweep"), "sweep"),
             .separator(),
-            sub(tr("menu.where"), [
-                rule(tr("menu.where.windows"), "onWindows"),
-                rule(tr("menu.where.menuWindows"), "onMenuWindows"),
-                rule(tr("menu.where.narrow"), "onNarrow"),
-                rule(tr("menu.where.widgets"), "onWidgets"),
-                rule(tr("menu.where.floor"), "onFloor"),
-                rule(tr("menu.where.dock"), "onDock"),
-                .separator(),
-                rule(tr("menu.where.openOnly"), "openOnly", false),
-            ]),
+            sub(tr("menu.where"), places),
         ]))
         menu.addItem(sub(tr("menu.people"), [
             item(tr("menu.people.never"), #selector(setPeople(_:)), tag: 0, on: settings.people == 0),
@@ -353,7 +454,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleAutoFill() { settings.autoFill.toggle(); applyConfig() }
     @objc private func toggleRule(_ s: NSMenuItem) {
         guard let key = s.representedObject as? String else { return }
-        settings.toggle(key, key != "openOnly")
+        settings.toggle(key, key != "openOnly" && key != "onIcons")
+        if key == "onIcons" {
+            // Места значков знает только Finder и отдаёт их через «Универсальный доступ». Включили галочку —
+            // система спросит разрешение; пока его нет, снег на значки просто не ложится.
+            DesktopIcons.shared.enabled = settings.flag(key, false)
+            if DesktopIcons.shared.enabled && !AXIsProcessTrusted() { DesktopIcons.requestAccess() }
+        }
         if key == "onFloor" && !settings.flag(key) {        // выключили низ экрана — снег оттуда убираем
             for o in overlays { _ = o.sim.extractFloor(x0: 0, x1: o.sim.wPt) }
         }
@@ -362,6 +469,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         applyConfig()
         pollWindows()
+    }
+
+    @objc private func grantIcons() {
+        DesktopIcons.requestAccess()
+        DesktopIcons.openSettings()
     }
 
     @objc private func setRadius(_ s: NSMenuItem) {

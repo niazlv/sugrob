@@ -1,3 +1,4 @@
+import CoreGraphics
 import Metal
 import simd
 
@@ -268,6 +269,22 @@ fragment float4 part_f(PFrag in [[stage_in]], float2 pc [[point_coord]]) {
     float a = in.alpha * (1.0 - smoothstep(0.3, 1.0, d));
     return float4(float3(0.96, 0.98, 1.0) * a, a);
 }
+
+// ---------- места, где снег не виден (окна с видео): уже нарисованное там гасится
+
+struct EOut { float4 pos [[position]]; };
+
+vertex EOut erase_v(uint vid [[vertex_id]], constant U& u [[buffer(0)]],
+                    const device packed_float2* v [[buffer(1)]]) {
+    float2 p = v[vid];
+    EOut o;
+    o.pos = float4(p.x / u.view.x * 2 - 1, 1 - p.y / u.view.y * 2, 0, 1);
+    return o;
+}
+
+fragment float4 erase_f(EOut in [[stage_in]], constant U& u [[buffer(0)]]) {
+    return float4(0, 0, 0, u.dim);       // смешивание: что было × (1 − dim)
+}
 """
 
 final class Renderer {
@@ -275,6 +292,7 @@ final class Renderer {
     private let gridPipe: MTLRenderPipelineState
     private let ballPipe: MTLRenderPipelineState
     private let partPipe: MTLRenderPipelineState
+    private let erasePipe: MTLRenderPipelineState
     private var tex: MTLTexture?
     private var hardTex: MTLTexture?
     private var caveTex: MTLTexture?
@@ -286,17 +304,18 @@ final class Renderer {
 
     /// Шейдеры собираются один раз на всё приложение: слоёв снега несколько, и собирать их
     /// заново при появлении каждого — заметная задержка.
-    private static var shared: (grid: MTLRenderPipelineState, ball: MTLRenderPipelineState, part: MTLRenderPipelineState)?
+    private static var shared: (grid: MTLRenderPipelineState, ball: MTLRenderPipelineState, part: MTLRenderPipelineState,
+                                erase: MTLRenderPipelineState)?
 
     init?(device: MTLDevice, pixelFormat: MTLPixelFormat) {
         self.device = device
         if let c = Renderer.shared {
-            gridPipe = c.grid; ballPipe = c.ball; partPipe = c.part
+            gridPipe = c.grid; ballPipe = c.ball; partPipe = c.part; erasePipe = c.erase
             return
         }
         do {
             let lib = try device.makeLibrary(source: shaderSource, options: nil)
-            func pipe(_ v: String, _ f: String) throws -> MTLRenderPipelineState {
+            func pipe(_ v: String, _ f: String, erase: Bool = false) throws -> MTLRenderPipelineState {
                 let d = MTLRenderPipelineDescriptor()
                 d.vertexFunction = lib.makeFunction(name: v)
                 d.fragmentFunction = lib.makeFunction(name: f)
@@ -305,8 +324,8 @@ final class Renderer {
                 a.isBlendingEnabled = true
                 a.rgbBlendOperation = .add
                 a.alphaBlendOperation = .add
-                a.sourceRGBBlendFactor = .one
-                a.sourceAlphaBlendFactor = .one
+                a.sourceRGBBlendFactor = erase ? .zero : .one          // стирание ничего не добавляет, только гасит
+                a.sourceAlphaBlendFactor = erase ? .zero : .one
                 a.destinationRGBBlendFactor = .oneMinusSourceAlpha
                 a.destinationAlphaBlendFactor = .oneMinusSourceAlpha
                 return try device.makeRenderPipelineState(descriptor: d)
@@ -314,7 +333,8 @@ final class Renderer {
             gridPipe = try pipe("grid_v", "grid_f")
             ballPipe = try pipe("ball_v", "ball_f")
             partPipe = try pipe("part_v", "part_f")
-            Renderer.shared = (gridPipe, ballPipe, partPipe)
+            erasePipe = try pipe("erase_v", "erase_f", erase: true)
+            Renderer.shared = (gridPipe, ballPipe, partPipe, erasePipe)
         } catch {
             NSLog("Sugrob: shader error: \(error)")
             return nil
@@ -329,7 +349,9 @@ final class Renderer {
         return slot
     }
 
-    func encode(sim: Sim, cmd: MTLCommandBuffer, rpd: MTLRenderPassDescriptor, scale: Float) {
+    /// hide — прямоугольники (в пунктах), где снег не должен быть виден; hideK — насколько он там погашен, 0…1.
+    func encode(sim: Sim, cmd: MTLCommandBuffer, rpd: MTLRenderPassDescriptor, scale: Float,
+                hide: [CGRect] = [], hideK: Float = 1) {
         // сетка -> текстура
         if tex == nil || tex!.width != sim.W || tex!.height != sim.H || texFor != ObjectIdentifier(sim) {
             let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .r8Unorm, width: sim.W, height: sim.H, mipmapped: false)
@@ -435,6 +457,20 @@ final class Renderer {
                                instanceCount: insts.count - underCount, baseInstance: underCount)
         }
         px.draw(sim: sim, enc: enc, device: device, format: rpd.colorAttachments[0].texture?.pixelFormat ?? .bgra8Unorm)
+        if !hide.isEmpty && hideK > 0 {
+            var quad: [Float] = []
+            quad.reserveCapacity(min(hide.count, 80) * 12)
+            for r in hide.prefix(80) {          // setVertexBytes принимает до 4 КБ
+                let x0 = Float(r.minX), y0 = Float(r.minY), x1 = Float(r.maxX), y1 = Float(r.maxY)
+                quad += [x0, y0, x1, y0, x0, y1, x1, y0, x1, y1, x0, y1]
+            }
+            u.dim = hideK
+            enc.setRenderPipelineState(erasePipe)
+            enc.setVertexBytes(&u, length: ulen, index: 0)
+            enc.setFragmentBytes(&u, length: ulen, index: 0)
+            enc.setVertexBytes(quad, length: quad.count * MemoryLayout<Float>.stride, index: 1)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: quad.count / 2)
+        }
         enc.endEncoding()
     }
 }

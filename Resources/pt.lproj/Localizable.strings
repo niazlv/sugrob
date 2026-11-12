@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "Em janelas coladas na barra de menus";
 "menu.where.narrow" = "Em janelas estreitas";
 "menu.where.widgets" = "Nos widgets da mesa";
+"menu.where.icons" = "Nos ícones da mesa (requer acesso de Acessibilidade)";
+"menu.where.icons.grant" = "Permitir nos Ajustes do Sistema…";
 "menu.where.floor" = "Na parte inferior da tela";
 "menu.where.dock" = "No Dock";
 "menu.where.openOnly" = "Não se acumular sobre outras janelas";
+"menu.where.offVideo" = "Não nevar sobre vídeos em reprodução";
 
 /* Menu: little people */
 "menu.people" = "Bonequinhos";

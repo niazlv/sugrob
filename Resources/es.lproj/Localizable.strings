@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "En ventanas pegadas a la barra de menús";
 "menu.where.narrow" = "En ventanas estrechas";
 "menu.where.widgets" = "En los widgets del escritorio";
+"menu.where.icons" = "En los iconos del escritorio (requiere acceso de Accesibilidad)";
+"menu.where.icons.grant" = "Permitir en Ajustes del Sistema…";
 "menu.where.floor" = "En la parte inferior de la pantalla";
 "menu.where.dock" = "En el Dock";
 "menu.where.openOnly" = "No posarse sobre otras ventanas";
+"menu.where.offVideo" = "No nevar sobre los vídeos en reproducción";
 
 /* Menu: little people */
 "menu.people" = "Personitas";

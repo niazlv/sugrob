@@ -23,6 +23,10 @@ if let i = args.firstIndex(of: "--wind-test") {
     exit(WindTest.run(outDir: dir, args: Array(args.dropFirst(i + 2))))
 }
 
+if let i = args.firstIndex(of: "--ax-dump") {
+    exit(DesktopIcons.dump(to: i + 1 < args.count ? args[i + 1] : "/dev/stdout"))
+}
+
 if args.contains("--version") {
     let i = Bundle.main.infoDictionary
     print("\(i?["CFBundleShortVersionString"] as? String ?? "?") (\(i?["CFBundleVersion"] as? String ?? "?"))")

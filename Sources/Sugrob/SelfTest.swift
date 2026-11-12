@@ -38,14 +38,14 @@ enum SelfTest {
         td.storageMode = .shared
         guard let target = device.makeTexture(descriptor: td) else { return 1 }
 
-        func shot(_ name: String, crop: CGRect? = nil) {
+        func shot(_ name: String, crop: CGRect? = nil, hide: [CGRect] = []) {
             let rpd = MTLRenderPassDescriptor()
             rpd.colorAttachments[0].texture = target
             rpd.colorAttachments[0].loadAction = .clear
             rpd.colorAttachments[0].storeAction = .store
             rpd.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
             let cmd = queue.makeCommandBuffer()!
-            renderer.encode(sim: sim, cmd: cmd, rpd: rpd, scale: scale)
+            renderer.encode(sim: sim, cmd: cmd, rpd: rpd, scale: scale, hide: hide)
             cmd.commit()
             cmd.waitUntilCompleted()
             var px = [UInt8](repeating: 0, count: pw * ph * 4)
@@ -108,6 +108,83 @@ enum SelfTest {
         let per = (CACurrentMediaTime() - t0) / (45 * 60) * 1000
         print(String(format: "step: %.3f ms (%d particles)", per, sim.parts.count))
         shot("1-snowfall")
+
+        // 1v. видео: в правом окне идёт видео — снег поверх него не рисуется, шапка на нём остаётся;
+        //     потом видео в заднем (тёмно-красном) окне — закрыта только та его часть, что видна из-за передних
+        do {
+            func info(_ i: Int, _ r: CGRect, video: Bool) -> WinInfo { WinInfo(id: i, video: video, rect: r) }
+            let frame = CGRect(x: 0, y: 0, width: CGFloat(wPt), height: CGFloat(hPt))
+            let dockRect = CGRect(x: 450, y: 690, width: 300, height: 60)
+            let front = videoZones([info(0, wins[0], video: false), info(1, wins[1], video: true), info(2, behind, video: false)],
+                                   capped: [0, 1], dock: dockRect, frame: frame, dip: 8)
+            shot("1v-video-front", hide: front)
+            let back = videoZones([info(0, wins[0], video: false), info(1, wins[1], video: false), info(2, behind, video: true)],
+                                  capped: [0, 1], dock: dockRect, frame: frame, dip: 8)
+            shot("1w-video-behind", hide: back)
+            let pip = videoZones([info(0, wins[0], video: false)], floating: [CGRect(x: 880, y: 560, width: 300, height: 170)],
+                                 capped: [0], frame: frame, dip: 8)
+            shot("1x-video-floating", hide: pip)
+            func area(_ rs: [CGRect]) -> Int { Int(rs.reduce(0) { $0 + $1.width * $1.height }) }
+            // зона окна с видео не трогает шапку над ним; зона заднего окна не заходит на передние и на их шапки
+            let capZone = CGRect(x: wins[1].minX - 4, y: wins[1].minY - 64, width: wins[1].width + 8, height: wins[1].height + 64)
+            let okFront = front.allSatisfy { $0.minY >= wins[1].minY + 8 && wins[1].contains($0) }
+            let okBack = back.allSatisfy { !$0.intersects(capZone) && behind.contains($0) } && area(back) > 0
+            let okNone = videoZones([info(0, wins[0], video: false)], capped: [0], frame: frame, dip: 8).isEmpty
+            print("video zones: front \(front.count) rects \(area(front)) pt², behind \(back.count) rects \(area(back)) pt², floating \(pip.count); checks: \(okFront && okBack && okNone ? "ok" : "FAILED")")
+            if !(okFront && okBack && okNone) { return 1 }
+        }
+
+        // 1i. значки рабочего стола: маленькие опоры (kind 3) со своей, небольшой высотой шапки
+        do {
+            let s2 = Sim(widthPt: 420, heightPt: 220, cell: 3, seed: 77)
+            s2.cfg.flakeRate = 30
+            s2.cfg.intensity = 3
+            s2.cfg.floor = false
+            let roofs: [(x0: Float, x1: Float, y: Float)] = [(40, 98, 80), (160, 208, 76), (280, 312, 90)]   // папка, документ, мелкий значок
+            s2.setLedges(roofs.enumerated().map {
+                Ledge(y: $1.y, x0: $1.x0 + 1, x1: $1.x1 - 1, kind: 3, win: 0x4000_0000 + $0, ox: $1.x0, wr: $1.x1, cap: 10)
+            })
+            for _ in 0..<(60 * 60) { s2.step(1.0 / 60) }
+            var report: [String] = []
+            var ok = true
+            for r in roofs {
+                let row = Int((r.y / 3).rounded())
+                let cols = Int((r.x0 / 3).rounded(.up))...Int((r.x1 / 3).rounded(.down)) - 1
+                let hs = cols.map { s2.snowHeight($0, row) }
+                let peak = hs.max() ?? 0
+                report.append("\(peak * 3) pt")
+                // шапка есть, но не выше полутора пределов (10 pt) с запасом на одну ячейку
+                if peak < 1 || Float(peak) * 3 > 10 * 1.5 + 3 { ok = false }
+            }
+            print("icon ledges: peak caps \(report.joined(separator: ", ")) (limit 10 pt); checks: \(ok ? "ok" : "FAILED")")
+            if !ok { return 1 }
+        }
+
+        // 1j. значки и перелистывание столов: стол уехал вбок вместе со слоем снега и окнами (их координаты
+        //     сдвигает система), а Finder называет значки по-прежнему — опора значка в слое сдвинуться не должна
+        do {
+            _ = NSApplication.shared
+            if let screen = NSScreen.screens.first,
+               let o = Overlay(screen: screen, device: device, cell: 3, cfg: SimConfig(), spaceId: 1) {
+                o.rules.icons = true
+                let f = screen.frame
+                let icon = WinInfo(id: 0x4000_0001, icon: true, iconSize: 64, rect: CGRect(x: 300, y: 400, width: 58, height: 53))
+                let win = WinInfo(id: 77, rect: CGRect(x: 600, y: 300, width: 400, height: 300))
+                func at(_ id: Int) -> Float? { o.sim.segs.first { $0.win == id }?.x0 }
+                o.updateWindows([win, icon])
+                let before = (at(icon.id), at(win.id))
+                var moved = win
+                moved.rect = win.rect.offsetBy(dx: -500, dy: 0)
+                o.updateWindows([moved, icon], own: [o.panel.windowNumber: CGRect(x: -500, y: 0, width: f.width, height: f.height)])
+                let after = (at(icon.id), at(win.id))
+                let ok = before.0 != nil && before.1 != nil && before.0 == after.0 && before.1 == after.1
+                print("icons while swiping spaces: icon ledge \(before.0 ?? -1) -> \(after.0 ?? -1), window ledge \(before.1 ?? -1) -> \(after.1 ?? -1); checks: \(ok ? "ok" : "FAILED")")
+                o.close()
+                if !ok { return 1 }
+            } else {
+                print("icons while swiping spaces: no screen, skipped")
+            }
+        }
 
         // 0. скруглённые углы и слежавшийся снег: левое окно получает радиус, снег старится ускоренно
         do {

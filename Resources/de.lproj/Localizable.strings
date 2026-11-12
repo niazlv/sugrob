@@ -39,9 +39,12 @@
 "menu.where.menuWindows" = "Auf Fenstern direkt unter der Menüleiste";
 "menu.where.narrow" = "Auf schmalen Fenstern";
 "menu.where.widgets" = "Auf Widgets auf dem Schreibtisch";
+"menu.where.icons" = "Auf Schreibtischsymbolen (benötigt Zugriff „Bedienungshilfen“)";
+"menu.where.icons.grant" = "In den Systemeinstellungen erlauben …";
 "menu.where.floor" = "Am unteren Bildschirmrand";
 "menu.where.dock" = "Auf dem Dock";
 "menu.where.openOnly" = "Nicht auf anderen Fenstern liegen bleiben";
+"menu.where.offVideo" = "Nicht über laufende Videos schneien";
 
 /* Menu: little people */
 "menu.people" = "Männchen";

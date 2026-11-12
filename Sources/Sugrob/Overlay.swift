@@ -9,11 +9,16 @@ struct SnowRules {
     var widgets = true        // на виджетах рабочего стола
     var dock = true           // на Dock
     var radius: CGFloat = 18  // радиус скругления углов окон: опора под снегом идёт по дуге угла
+    var offVideo = true       // поверх окон, где идёт видео, снег не рисуется
+    var icons = false         // на значках рабочего стола (нужен «Универсальный доступ», см. DesktopIcons)
 }
 
 struct WinInfo {
     var id: Int
     var widget = false
+    var video = false     // окно приложения, которое сейчас показывает видео (см. VideoWatch)
+    var icon = false      // не окно, а значок рабочего стола: рамка — от его «крыши» до низа
+    var iconSize: CGFloat = 0
     /// У виджета системное окно шире видимой плитки на прозрачную кайму; снег должен лежать на плитке.
     var inset: CGFloat { widget ? 8 : 0 }
     var left: CGFloat { rect.minX + inset }
@@ -22,33 +27,96 @@ struct WinInfo {
     var rect: CGRect      // глобальные координаты CG (начало — левый верх главного экрана)
 }
 
+/// Что сейчас на экране, кроме самого снега.
+struct WindowSnapshot {
+    var wins: [WinInfo] = []            // обычные окна и виджеты, от переднего к заднему
+    var dock = false                    // полоса Dock на экране (в том числе выехала из автоскрытия)
+    var own: [Int: CGRect] = [:]        // где сейчас наши собственные слои снега
+    var floating: [CGRect] = []         // видео поверх всех окон («картинка в картинке»)
+    var widgets = 0                     // сколько виджетов нашлось (для журнала)
+    var videoApps: Set<String> = []     // кто показывает видео (для журнала)
+}
+
+/// Чьё окно. Имя владельца (kCGWindowOwnerName) для этого не годится: система отдаёт его в переводе —
+/// «Центр уведомлений», «Mitteilungszentrale», «程序坞», — поэтому процесс узнаём по bundle id.
+private var bundleCache: [Int: String] = [:]
+private var bundleCacheAt: CFTimeInterval = 0
+func bundleID(ofPID pid: Int) -> String {
+    let now = CACurrentMediaTime()
+    if now - bundleCacheAt > 30 {           // номера процессов со временем переиспользуются
+        bundleCache.removeAll(keepingCapacity: true)
+        bundleCacheAt = now
+    }
+    if let b = bundleCache[pid] { return b }
+    let b = NSRunningApplication(processIdentifier: pid_t(pid))?.bundleIdentifier ?? ""
+    bundleCache[pid] = b
+    return b
+}
+
+/// Системные процессы, чьи окна ниже обычных — не виджеты: значки стола, обои, сам Dock.
+private let notWidgets: Set<String> = ["com.apple.finder", "com.apple.dock", "com.apple.wallpaper.agent",
+                                       "com.apple.controlcenter", "com.apple.Spotlight", "com.apple.systemuiserver",
+                                       "com.apple.WindowManager"]
+
+/// Виджет рабочего стола: окно ниже обычных, которое держит «Центр уведомлений». Если в новой системе
+/// виджеты переедут к другому системному процессу, они всё равно найдутся: подойдёт любое небольшое
+/// окно процесса Apple на этом уровне.
+func isWidgetWindow(layer: Int, bundle: String, size: CGSize) -> Bool {
+    guard layer < 0 else { return false }
+    if bundle == "com.apple.notificationcenterui" { return true }
+    return bundle.hasPrefix("com.apple.") && !notWidgets.contains(bundle) && size.width <= 1000 && size.height <= 1000
+}
+
 /// Окна текущего рабочего стола, от переднего к заднему. Имена окон не читаются —
 /// только рамки, поэтому разрешение «Запись экрана» не нужно.
-func currentWindows() -> (wins: [WinInfo], dock: Bool, own: [Int: CGRect]) {
+func currentWindows(video: Bool = true) -> WindowSnapshot {
+    var snap = WindowSnapshot()
     guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-            as? [[String: Any]] else { return ([], false, [:]) }
-    var dock = false
-    var own: [Int: CGRect] = [:]        // где сейчас наши собственные слои снега
+            as? [[String: Any]] else { return snap }
     let me = Int(ProcessInfo.processInfo.processIdentifier)
-    var out: [WinInfo] = []
+    let playing = video ? VideoWatch.pids() : []
     for w in list {
         guard let layer = w[kCGWindowLayer as String] as? Int,
               let bd = w[kCGWindowBounds as String] as? [String: Any],
               let rect = CGRect(dictionaryRepresentation: bd as CFDictionary) else { continue }
-        if (w[kCGWindowOwnerPID as String] as? Int) == me {
-            if let n = w[kCGWindowNumber as String] as? Int { own[n] = rect }
+        let pid = w[kCGWindowOwnerPID as String] as? Int ?? 0
+        if pid == me {
+            if let n = w[kCGWindowNumber as String] as? Int { snap.own[n] = rect }
             continue
         }
         if let a = w[kCGWindowAlpha as String] as? Double, a < 0.05 { continue }
-        let owner = w[kCGWindowOwnerName as String] as? String ?? ""
-        if owner == "Dock" && layer == 20 { dock = true }     // полоса Dock сейчас на экране (в том числе выехала из автоскрытия)
-        // обычные окна и виджеты рабочего стола
-        let widget = layer < 0 && owner == "Notification Center"
-        guard layer == 0 || widget else { continue }
+        let bundle = layer == 0 && !playing.contains(pid) ? "" : bundleID(ofPID: pid)
+        if layer == 20 && bundle == "com.apple.dock" { snap.dock = true }
         if rect.width < 40 || rect.height < 40 { continue }
-        out.append(WinInfo(id: (w[kCGWindowNumber as String] as? Int) ?? 0, widget: widget, rect: rect))
+        if layer > 0 {
+            // «картинка в картинке» и подобные окна с видео поверх остальных
+            if video, layer < 1000, rect.width >= 120, rect.height >= 68,
+               bundle == "com.apple.PIPAgent" || playing.contains(pid) { snap.floating.append(rect) }
+            continue
+        }
+        // обычные окна и виджеты рабочего стола
+        let widget = isWidgetWindow(layer: layer, bundle: bundle, size: rect.size)
+        guard layer == 0 || widget else { continue }
+        let isVideo = !widget && playing.contains(pid)
+        if widget { snap.widgets += 1 }
+        if isVideo { snap.videoApps.insert(bundle.isEmpty ? "pid \(pid)" : bundle) }
+        snap.wins.append(WinInfo(id: (w[kCGWindowNumber as String] as? Int) ?? 0, widget: widget, video: isVideo, rect: rect))
     }
-    return (out, dock, own)
+    return snap
+}
+
+/// Кому принадлежат окна не из обычного слоя — одной строкой, для журнала. Имена и содержимое окон
+/// не читаются: только процесс, уровень и число окон.
+func windowCensus() -> String {
+    guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return "?" }
+    var count: [String: Int] = [:]
+    for w in list {
+        guard let layer = w[kCGWindowLayer as String] as? Int, layer != 0 else { continue }
+        let pid = w[kCGWindowOwnerPID as String] as? Int ?? 0
+        let b = bundleID(ofPID: pid)
+        count["\(b.isEmpty ? "-" : b)@\(layer)", default: 0] += 1
+    }
+    return count.sorted { $0.key < $1.key }.map { "\($0.key)x\($0.value)" }.joined(separator: " ")
 }
 
 /// Номера всех существующих окон, включая окна на других рабочих столах, свёрнутые и скрытые.
@@ -113,6 +181,19 @@ func spaceInfo(of screen: NSScreen) -> (id: UInt64, fullscreen: Bool) {
     return (id, false)
 }
 
+/// Номера всех рабочих столов, какие сейчас есть (обычных и полноэкранных). nil — узнать нельзя.
+func allSpaces() -> Set<UInt64>? {
+    guard let fn = spaceListLookup.fn,
+          let displays = fn(spaceListLookup.conn)?.takeRetainedValue() as? [[String: Any]] else { return nil }
+    var out = Set<UInt64>()
+    for d in displays {
+        for s in d["Spaces"] as? [[String: Any]] ?? [] {
+            if let id = (s["id64"] as? NSNumber)?.uint64Value { out.insert(id) }
+        }
+    }
+    return out.isEmpty ? nil : out
+}
+
 final class SnowView: MTKView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {}
@@ -123,9 +204,9 @@ final class SnowView: MTKView {
     override func scrollWheel(with event: NSEvent) {}
 }
 
-/// Прозрачное окно во весь экран со своей симуляцией снега — по одному на каждый рабочий стол.
-/// Окно принадлежит своему столу, поэтому при перелистывании столов система везёт его вместе
-/// с окнами этого стола, и снег не отрывается от них.
+/// Прозрачное окно во весь экран со своей симуляцией снега — по одному на каждый рабочий стол,
+/// обычный или полноэкранный. Окно принадлежит своему столу, поэтому при перелистывании столов
+/// система везёт его вместе с окнами этого стола, и снег не отрывается от них и не пропадает.
 final class Overlay: NSObject, MTKViewDelegate {
     let screen: NSScreen
     let panel: NSPanel
@@ -143,10 +224,21 @@ final class Overlay: NSObject, MTKViewDelegate {
     var rules = SnowRules()
 
     /// Рабочий стол, которому принадлежит это окно. Общие слои (isShared) видны на всех столах сразу:
-    /// 0 — номер стола узнать нельзя; Overlay.fullscreenKey — слой для полноэкранных приложений.
+    /// 0 — номер стола узнать нельзя; Overlay.fullscreenKey — один слой на все полноэкранные приложения
+    /// (запасной вариант, если система не пустила слой в сам полноэкранный стол).
     let spaceId: UInt64
     static let fullscreenKey = UInt64.max
     var isShared: Bool { spaceId == 0 || spaceId == Overlay.fullscreenKey }
+    /// Слой полноэкранного приложения (свой у стола или общий).
+    let fullscreen: Bool
+    let createdAt = CACurrentMediaTime()
+    /// Слой прижился на своём столе (проверяется вскоре после создания).
+    var settled = false
+    var misses = 0
+    /// Стол этого слоя пропал из списка системы (приложение вышло из полноэкранного режима, стол закрыли):
+    /// слой сразу прячется, а если стол не вернулся — закрывается.
+    private(set) var orphanedAt: CFTimeInterval?
+    private var pausedByUser = false
     /// На новом столе снег «уже лежит», а не начинается с нуля.
     var freshFill = false
     private(set) var active = true              // этот стол сейчас на экране
@@ -154,12 +246,18 @@ final class Overlay: NSObject, MTKViewDelegate {
     private var dockShown = false
     private var maxOffset: CGFloat = 0          // насколько слой уезжал вместе со столом (для журнала)
     private var lastPoll = CACurrentMediaTime()
+    /// Где сейчас идёт видео (в пунктах слоя): там снег не рисуется, будто идёт позади окна.
+    private var hideRects: [CGRect] = []
+    private var hideShown: [CGRect] = []        // что закрыто на экране: при исчезновении видео снег проявляется плавно
+    private var hideK: Float = 0
+    private var hideSnap = true                 // слой только что появился или вернулся: видео закрыто сразу, без проявления
 
-    init?(screen: NSScreen, device: MTLDevice, cell: Float, cfg: SimConfig, spaceId: UInt64) {
+    init?(screen: NSScreen, device: MTLDevice, cell: Float, cfg: SimConfig, spaceId: UInt64, fullscreen: Bool = false) {
         guard let renderer = Renderer(device: device, pixelFormat: .bgra8Unorm),
               let queue = device.makeCommandQueue() else { return nil }
         self.screen = screen
         self.spaceId = spaceId
+        self.fullscreen = fullscreen || spaceId == Overlay.fullscreenKey
         self.renderer = renderer
         self.queue = queue
         let f = screen.frame
@@ -179,11 +277,13 @@ final class Overlay: NSObject, MTKViewDelegate {
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.isReleasedWhenClosed = false
-        // Слой обычного стола принадлежит только ему и едет вместе с ним при перелистывании.
-        // В чужое полноэкранное приложение такое окно поместить нельзя, поэтому для них слой общий.
+        // Слой принадлежит только своему столу и едет вместе с ним при перелистывании. В стол чужого
+        // полноэкранного приложения система пускает только «вспомогательные» окна (fullScreenAuxiliary):
+        // окно, показанное, пока такой стол на экране, остаётся в нём. Общий слой виден на всех столах.
         let shared = spaceId == 0 || spaceId == Overlay.fullscreenKey
         panel.collectionBehavior = shared ? [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
-                                          : [.stationary, .ignoresCycle]
+                                          : (self.fullscreen ? [.fullScreenAuxiliary, .stationary, .ignoresCycle]
+                                                             : [.stationary, .ignoresCycle])
 
         view = SnowView(frame: NSRect(origin: .zero, size: f.size), device: device)
         view.colorPixelFormat = .bgra8Unorm
@@ -214,9 +314,18 @@ final class Overlay: NSObject, MTKViewDelegate {
 
     /// Пауза из меню: окно остаётся на своём столе, просто становится невидимым.
     func setHidden(_ hidden: Bool) {
-        panel.alphaValue = hidden || (isShared && !active) ? 0 : 1
+        pausedByUser = hidden
+        panel.alphaValue = hidden || (isShared && !active) || orphanedAt != nil ? 0 : 1
         view.isPaused = hidden || !active
         if !view.isPaused { last = CACurrentMediaTime() }
+    }
+
+    /// Стол слоя есть в списке системы или пропал. Слой пропавшего стола система переносит на соседний —
+    /// там он лёг бы застывшим кадром поверх чужого снега, поэтому сразу становится невидимым.
+    func setOrphaned(_ gone: Bool, now: CFTimeInterval) {
+        if gone == (orphanedAt != nil) { return }
+        orphanedAt = gone ? now : nil
+        panel.alphaValue = gone || pausedByUser || (isShared && !active) ? 0 : 1
     }
 
     /// Стол ушёл с экрана: симуляция замирает, последний кадр остаётся (он виден, пока стол уезжает).
@@ -234,9 +343,11 @@ final class Overlay: NSObject, MTKViewDelegate {
     func resume(hidden: Bool) {
         guard !active else { return }
         active = true
+        hideSnap = true
         sim.catchUp(Float(CACurrentMediaTime() - leftAt))
         last = CACurrentMediaTime()
         view.isPaused = hidden
+        pausedByUser = hidden
         if isShared { panel.alphaValue = hidden ? 0 : 1 }
     }
 
@@ -255,6 +366,7 @@ final class Overlay: NSObject, MTKViewDelegate {
         prevWins = [:]
         stashes = [:]
         dockShown = false
+        hideRects = []; hideShown = []; hideK = 0
     }
 
     /// Рамка экрана в координатах CG (ось Y вниз от верха главного экрана).
@@ -266,7 +378,7 @@ final class Overlay: NSObject, MTKViewDelegate {
 
     // MARK: - Опоры: верхние края окон и Dock
 
-    func updateWindows(_ wins: [WinInfo], dockOnscreen: Bool = false, own: [Int: CGRect] = [:]) {
+    func updateWindows(_ wins: [WinInfo], dockOnscreen: Bool = false, own: [Int: CGRect] = [:], floating: [CGRect] = []) {
         let now = CACurrentMediaTime()
         let dt = Float(max(0.01, now - lastPoll))
         lastPoll = now
@@ -280,6 +392,17 @@ final class Overlay: NSObject, MTKViewDelegate {
         } else if maxOffset != 0 {
             EventLog.add("layer \(spaceId): rode the desktop during a switch, up to \(Int(maxOffset)) pt off-screen")
             maxOffset = 0
+        }
+
+        // Значки — исключение: их рамки называет Finder, а для него значки при перелистывании стоят
+        // на месте. Приводим их к тем же «едущим» координатам, что у окон и у слоя, — иначе, пока стол
+        // листают, снег съезжал бы со значков в сторону.
+        let ride = CGPoint(x: sf.minX - cgFrame.minX, y: sf.minY - cgFrame.minY)
+        let wins = ride == .zero ? wins : wins.map { w -> WinInfo in
+            guard w.icon else { return w }
+            var moved = w
+            moved.rect = w.rect.offsetBy(dx: ride.x, dy: ride.y)
+            return moved
         }
 
         var cur: [Int: CGRect] = [:]        // рамки окон относительно слоя
@@ -315,14 +438,15 @@ final class Overlay: NSObject, MTKViewDelegate {
         var out: [Ledge] = []
         for (i, w) in wins.enumerated() {
             let y = w.top
-            let rad = w.widget ? min(rules.radius, 1) * 22 : rules.radius
-            let edge = max(3, rad * 0.3)       // у самого края дуга слишком крутая — снег там не держится
-            guard w.widget ? rules.widgets : rules.windows else { continue }
-            guard w.rect.width >= (rules.narrow ? 60 : 120), w.rect.height >= 40 else { continue }
+            let rad = w.icon ? 0 : (w.widget ? min(rules.radius, 1) * 22 : rules.radius)
+            let edge = w.icon ? 1 : max(3, rad * 0.3)       // у самого края дуга слишком крутая — снег там не держится
+            // значки есть только на обычном столе: в полноэкранном приложении их не видно
+            guard w.icon ? rules.icons && !fullscreen : (w.widget ? rules.widgets : rules.windows) else { continue }
+            guard w.icon || (w.rect.width >= (rules.narrow ? 60 : 120) && w.rect.height >= 40) else { continue }
             guard y > sf.minY + menuBar + (rules.menuWindows ? -1 : 12), y > sf.minY + 6, y < sf.maxY - 12 else { continue }
             // Полноэкранное приложение упирается в верх экрана (на экране с вырезом — в чёрную полосу под ним):
             // «тонкая шапка у строки меню» там превратилась бы в полоску снега в одну ячейку по самому верху.
-            if spaceId == Overlay.fullscreenKey && y <= sf.minY + max(menuBar, screen.safeAreaInsets.top) + 2 { continue }
+            if fullscreen && y <= sf.minY + max(menuBar, screen.safeAreaInsets.top) + 2 { continue }
             var ivs: [(CGFloat, CGFloat)] = [(max(w.left + edge, sf.minX), min(w.right - edge, sf.maxX))]
             // вычесть то, что закрыто окнами спереди (и то, над чем нет свободного места)
             for j in 0..<i {
@@ -338,9 +462,11 @@ final class Overlay: NSObject, MTKViewDelegate {
                 ivs = next
                 if ivs.isEmpty { break }
             }
-            for iv in ivs where iv.1 - iv.0 >= 18 {
+            for iv in ivs where iv.1 - iv.0 >= (w.icon ? 12 : 18) {
+                // на значке шапка маленькая, под стать ему: около шестой части его размера
                 out.append(Ledge(y: Float(y - sf.minY), x0: Float(iv.0 - sf.minX), x1: Float(iv.1 - sf.minX),
-                                 kind: 1, win: w.id, ox: Float(w.left - sf.minX), wr: Float(w.right - sf.minX), r: Float(rad)))
+                                 kind: w.icon ? 3 : 1, win: w.id, ox: Float(w.left - sf.minX), wr: Float(w.right - sf.minX),
+                                 r: Float(rad), cap: w.icon ? Float(min(12, max(5, w.iconSize * 0.16))) : 0))
             }
         }
         let dl = rules.dock ? dockLedge(onscreen: dockOnscreen) : nil
@@ -353,7 +479,7 @@ final class Overlay: NSObject, MTKViewDelegate {
             if rows != 0 { sim.shiftPile(old, cols: 0, rows: rows, vx: 0, vy: 0) }
         }
         if let dl { out.append(dl) }
-        let boxes = wins.map {
+        let boxes = wins.filter { !$0.icon }.map {
             WinBox(x0: Float($0.rect.minX - sf.minX), x1: Float($0.rect.maxX - sf.minX),
                    y0: Float($0.rect.minY - sf.minY), y1: Float($0.rect.maxY - sf.minY), win: $0.id)
         }
@@ -370,6 +496,16 @@ final class Overlay: NSObject, MTKViewDelegate {
         if freshFill {
             sim.fillSurfaces()
             freshFill = false
+        }
+        hideRects = rules.offVideo
+            ? videoZones(wins, floating: floating, capped: Set(out.map { $0.win }),
+                         dock: dl.map { CGRect(x: sf.minX + CGFloat($0.ox), y: sf.minY + CGFloat($0.y), width: CGFloat($0.wr - $0.ox), height: sf.height) },
+                         frame: sf, dip: rules.radius * 0.3 + CGFloat(sim.cell) + 1)
+            : []
+        if hideSnap {
+            hideSnap = false
+            hideShown = hideRects
+            hideK = hideRects.isEmpty ? 0 : 1
         }
     }
 
@@ -470,12 +606,21 @@ final class Overlay: NSObject, MTKViewDelegate {
 
         sim.step(dt)
 
+        // видео началось — снег поверх него гаснет за треть секунды, кончилось — так же проявляется
+        if !hideRects.isEmpty {
+            hideShown = hideRects
+            hideK = min(1, hideK + dt / 0.3)
+        } else if hideK > 0 {
+            hideK = max(0, hideK - dt / 0.3)
+            if hideK == 0 { hideShown = [] }
+        }
+
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let cmd = queue.makeCommandBuffer() else { return }
         // лёгкое затемнение в режиме варежки: видно, что режим включён, и окно ловит клики
         let dim = hands ? 0.05 : 0.0
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: dim)
-        renderer.encode(sim: sim, cmd: cmd, rpd: rpd, scale: 1)
+        renderer.encode(sim: sim, cmd: cmd, rpd: rpd, scale: 1, hide: hideShown, hideK: hideK)
         cmd.present(drawable)
         cmd.commit()
     }

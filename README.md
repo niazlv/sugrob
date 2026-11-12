@@ -43,14 +43,25 @@ gets in the way of work.
 - **You can touch it.** Brush it away with the cursor, push it off a window edge, roll a ball,
   throw a snowball, build a snowman.
 - **It sticks to your windows.** Drag a window and its drift rides along; close it and the snow
-  falls. Each desktop (Space) keeps its own snow.
+  falls. Each desktop (Space) and each full-screen app keeps its own snow, which slides away and
+  comes back with it when you swipe between them.
+- **It stays off your video.** While a window is playing video, no snow is drawn over it, as if
+  it were falling behind the window.
 - **Little people.** Every so often a group in parkas and bobble hats wanders in. They have
   snowball fights, build snowmen, dig tunnels and pull each other on sledges. If one of them gets
   buried, the others run to dig them out. Some stay for good and build an igloo.
 - **Weather.** Light snow, steady snowfall or a blizzard, wind in either direction, and a squall
   that turns up whenever it likes.
 - **It doesn't peek.** No screen recording, no accessibility access. The app reads window frames
-  only, never titles or contents.
+  only, never titles or contents. It knows where video is playing indirectly: from which app has
+  asked the system to keep the display awake.
+- **Snow on desktop icons, if you ask for it.** Folders, apps and files on the desktop can wear
+  caps too, but only Finder knows where they are, and it shares that through Accessibility. So
+  the option is off until you turn it on yourself (Snowdrifts → Where Snow Settles), and only then
+  does macOS ask for permission. The app takes each icon's frame and kind; names are not kept and
+  files are not opened. Pictures, videos and PDFs also need their proportions, which come from
+  Spotlight, and for that macOS separately asks for access to the Desktop folder. Decline, and
+  snow settles on everything except thumbnails.
 
 Everything can be adjusted or switched off from the ❄ menu.
 
@@ -151,11 +162,23 @@ headless; GitHub Actions runs the same stress test on every push:
 - **Two states of snow.** Settled snow lives in a grid: one byte per cell, plus a “hardness” byte
   for ageing. Loose snow is a list of particles with velocity, gravity and wind. A cell that loses
   its support becomes a particle; a particle that lands on something becomes a cell.
-- **Ledges.** The top edges of visible windows, the Dock and the bottom of the screen. Window
-  frames come from `CGWindowListCopyWindowInfo`, which needs no permission as long as titles are
-  not read.
-- **Rendering.** One transparent, click-through Metal layer per desktop. The grid is uploaded as a
-  texture and shaded in a fragment shader.
+- **Ledges.** The top edges of visible windows and widgets, the Dock and the bottom of the
+  screen. Window frames come from `CGWindowListCopyWindowInfo`, which needs no permission as long
+  as titles are not read. System windows (widgets, the Dock) are recognised by the owning process's
+  bundle id rather than its name, because macOS reports the name translated.
+- **Desktop icons** (when enabled). Through the Accessibility API Finder reports each icon's frame
+  and URL; only the extension and whether it is a folder are taken from the URL. The icon's “roof”
+  is measured on the system icon for that type (`NSWorkspace.icon(for:)`): the widest level stretch
+  of its top edge. Finder fits a thumbnail into a square 7/8 the icon size, and its proportions
+  come from Spotlight metadata (`kMDItemPixelWidth/Height`). The app is signed without a developer
+  certificate, so after an update macOS treats it as a different program and Accessibility access
+  has to be granted again (a menu item that opens the settings appears).
+- **Video.** A player asks the system to keep the display awake while it plays; the list of such
+  requests (`IOPMCopyAssertionsByProcess`) is available without any permission. The visible part of
+  that app's windows is blanked at the end of each frame. The cap on the window itself and snow on
+  windows in front of it stay.
+- **Rendering.** One transparent, click-through Metal layer per desktop and per full-screen
+  space. The grid is uploaded as a texture and shaded in a fragment shader.
 - **Input.** The cursor position and modifier keys are polled, so no events have to be intercepted.
   The layer captures the mouse only while `⌃⌥` is held.
 - **The little people** are part of the same simulation, not a cartoon drawn over it. A snowball
